@@ -430,6 +430,10 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
 .s3-file-name{font-size:13px;font-weight:500;color:var(--text);}
 .s3-file-meta{font-size:10px;color:var(--muted);margin-top:2px;}
 .s3-file-load{font-size:11px;color:#4285F4;font-weight:600;flex-shrink:0;margin-left:12px;}
+.s3-file-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:4px;line-height:1;transition:.15s;}
+.s3-file-del:hover{color:#EF5350;background:rgba(239,83,80,.12);}
+.s3-upload-btn{background:none;border:none;color:#34A853;font-size:11px;cursor:pointer;font-weight:600;padding:0;}
+.s3-upload-btn:hover{color:#2e7d32;}
 .s3-saved-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#00e676;
   background:#0a2518;border:1px solid #1e4a30;border-radius:10px;padding:2px 8px;margin-left:8px;}
 .btn-s3{background:#1a2e4a;color:#4285F4;border:1px solid #1e3a5c;}
@@ -729,8 +733,12 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     <div id="s3-files-section" style="display:none">
       <div class="s3-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>CSV Files in Bucket</span>
-        <button onclick="listStorageFiles()" style="background:none;border:none;color:#4285F4;font-size:11px;cursor:pointer;font-weight:600">↻ Refresh</button>
+        <div style="display:flex;align-items:center;gap:10px">
+          <label for="s3-upload-input" class="s3-upload-btn">⬆ Upload</label>
+          <button onclick="listStorageFiles()" style="background:none;border:none;color:#4285F4;font-size:11px;cursor:pointer;font-weight:600">↻ Refresh</button>
+        </div>
       </div>
+      <input type="file" id="s3-upload-input" accept=".csv,.tsv" multiple style="display:none" onchange="handleS3Upload(this.files)">
       <div id="s3-file-list" class="s3-file-list"></div>
     </div>
   </div>
@@ -5215,6 +5223,14 @@ function applyCustom(){
   const from=document.getElementById('custom-from').value;
   let to=document.getElementById('custom-to').value;
   if(to>_TODAY) to=_TODAY;
+  if(from&&to&&from>to){
+    const fromEl=document.getElementById('custom-from');
+    const toEl=document.getElementById('custom-to');
+    fromEl.style.borderColor='#EF5350';
+    toEl.style.borderColor='#EF5350';
+    setTimeout(()=>{fromEl.style.borderColor='';toEl.style.borderColor='';},2000);
+    return;
+  }
   gran=document.getElementById('custom-gran').value;
   customFrom=from||null;
   customTo=to||null;
@@ -5970,6 +5986,7 @@ function switchStorage(p){
 async function autoLoadFromStorage(){
   const cfg = getStorageConfig();
   if(!cfg || !cfg.bucket || !cfg.accessKey || !cfg.secretKey) return;
+  reset();
   showLoader('טוען מ-S3...');
 
   const btn = document.querySelector('.btn-s3');
@@ -6064,7 +6081,8 @@ async function listStorageFiles(){
       .map(el=>el.textContent).filter(k=>k.toLowerCase().endsWith('.csv')||k.toLowerCase().endsWith('.tsv'));
     if(!keys.length){
       s3SetStatus(`Connected ✓ — No CSV files found under "${cfg.prefix||'(root)'}"`, 'ok');
-      document.getElementById('s3-files-section').style.display='none';
+      document.getElementById('s3-file-list').innerHTML='<div style="padding:8px 0;font-size:12px;color:var(--muted)">No files yet — upload one above.</div>';
+      document.getElementById('s3-files-section').style.display='block';
     } else {
       s3SetStatus(`Connected ✓ — ${keys.length} file${keys.length!==1?'s':''} found`, 'ok');
       renderS3FileList(keys, doc);
@@ -6076,6 +6094,38 @@ async function listStorageFiles(){
 
 // keep old name as alias
 async function listS3Files(){ return listStorageFiles(); }
+
+async function handleS3Upload(files){
+  for(const file of files) await uploadToS3(file);
+  document.getElementById('s3-upload-input').value='';
+}
+
+async function uploadToS3(file){
+  const cfg=getStorageConfig();
+  const prefix=(cfg.prefix||'').replace(/\/$/,'');
+  const key=prefix?`${prefix}/${file.name}`:file.name;
+  s3SetStatus(`Uploading ${file.name}…`,'loading');
+  try{
+    const text=await file.text();
+    const res=await signedStorageFetch(cfg,'PUT',key,{},text);
+    if(!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    s3SetStatus(`✓ Uploaded: ${file.name}`,'ok');
+    await listStorageFiles();
+  }catch(e){ s3SetStatus('Upload failed: '+e.message,'err'); }
+}
+
+async function deleteS3File(key){
+  const name=key.split('/').pop();
+  if(!confirm(`Delete "${name}" from bucket?`)) return;
+  const cfg=getStorageConfig();
+  s3SetStatus(`Deleting ${name}…`,'loading');
+  try{
+    const res=await signedStorageFetch(cfg,'DELETE',key,{});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    s3SetStatus(`✓ Deleted: ${name}`,'ok');
+    await listStorageFiles();
+  }catch(e){ s3SetStatus('Delete failed: '+e.message,'err'); }
+}
 
 function renderS3FileList(keys, doc){
   const cfg = getS3Config();
@@ -6108,7 +6158,10 @@ function renderS3FileList(keys, doc){
         <div class="s3-file-name">📄 ${name}</div>
         <div class="s3-file-meta">${[kb, mod].filter(Boolean).join(' · ')}</div>
       </div>
-      <span class="s3-file-load">Load →</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="s3-file-load">Load →</span>
+        <button class="s3-file-del" onclick="event.stopPropagation();deleteS3File(${JSON.stringify(key)})" title="Delete">🗑</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -6116,6 +6169,7 @@ function renderS3FileList(keys, doc){
 async function loadAllS3Files(){
   const keys = window._s3Keys || [];
   if(!keys.length) return;
+  reset();
   showLoader('טוען מ-S3...');
   window._s3LoadPending = keys.length;
   setLoaderProgress(5);
@@ -6157,7 +6211,7 @@ async function loadS3File(key){
 }
 
 // ── Unified Storage Signing (AWS Sig V4 — works for both S3 and GCS HMAC) ──
-async function signedStorageFetch(cfg, method, key, queryParams){
+async function signedStorageFetch(cfg, method, key, queryParams, body=null){
   // GCS S3-compatible endpoint: storage.googleapis.com/{bucket}/...
   // S3 endpoint: {bucket}.s3.{region}.amazonaws.com/...
   const isGCS = storageProvider === 'gcs';
@@ -6173,7 +6227,9 @@ async function signedStorageFetch(cfg, method, key, queryParams){
   const now     = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g,'');
   const dateStr = amzDate.slice(0,8);
-  const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+  const payloadHash = body!=null
+    ? await sha256hex(typeof body==='string' ? new TextEncoder().encode(body) : body)
+    : 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
   const sortedQP = Object.entries(queryParams)
     .sort(([a],[b])=>a.localeCompare(b))
@@ -6191,14 +6247,13 @@ async function signedStorageFetch(cfg, method, key, queryParams){
                      `SignedHeaders=${signedHdrs},Signature=${sig}`;
 
   const fetchUrl = `https://${host}${path}${sortedQP?'?'+sortedQP:''}`;
-  return fetch(fetchUrl, {
-    method,
-    headers:{
-      'Authorization':        authHeader,
-      'x-amz-date':           amzDate,
-      'x-amz-content-sha256': payloadHash,
-    },
-  });
+  const hdrs = {
+    'Authorization':        authHeader,
+    'x-amz-date':           amzDate,
+    'x-amz-content-sha256': payloadHash,
+  };
+  if(body!=null) hdrs['Content-Type']='text/csv';
+  return fetch(fetchUrl, {method, headers:hdrs, ...(body!=null?{body}:{})});
 }
 
 // legacy alias
@@ -6208,7 +6263,8 @@ function signedS3Fetch(cfg, method, key, qp){ return signedStorageFetch(cfg, met
 function uriEncode(s){ return encodeURIComponent(s).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16)); }
 
 async function sha256hex(msg){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  const data = typeof msg==='string' ? new TextEncoder().encode(msg) : msg;
+  const buf = await crypto.subtle.digest('SHA-256', data);
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
