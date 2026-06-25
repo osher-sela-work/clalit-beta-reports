@@ -280,7 +280,7 @@ main{padding:24px 28px;max-width:1360px;margin:0 auto;}
   border:1.5px solid var(--border);color:var(--muted);background:transparent;transition:.15s;
 }
 .dp-preset.on{border-color:#4f8ef7;color:#4f8ef7;background:#4f8ef720;}
-#dp-search-wrap{margin-left:auto;flex-shrink:0;}
+#dp-search-wrap{margin-left:auto;flex-shrink:0;display:flex;align-items:center;}
 #dp-search{
   background:var(--surface2);border:1px solid var(--border);border-radius:8px;
   color:var(--text);font-size:12px;padding:5px 12px;outline:none;width:200px;
@@ -670,6 +670,14 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     </div>
     <div id="dp-search-wrap">
       <input id="dp-search" placeholder="חיפוש..." oninput="dpSetSearch(this.value)">
+      <button onclick="dpExportCSV()" title="ייצוא CSV"
+        style="margin-right:8px;background:none;border:1px solid var(--border);border-radius:8px;
+          color:var(--muted);font-size:12px;cursor:pointer;padding:5px 12px;white-space:nowrap;
+          transition:.15s;display:inline-flex;align-items:center;gap:5px"
+        onmouseover="this.style.borderColor='#34A853';this.style.color='#34A853'"
+        onmouseout="this.style.borderColor='';this.style.color=''">
+        ⬇ CSV
+      </button>
     </div>
   </div>
   <div id="dp-body">
@@ -1700,10 +1708,7 @@ function parseLoginAudit(lines, hdrs){
   const eventIdx  = hdrs.findIndex(h=>/^event\s*name$/i.test(h)||/^event\s*status$/i.test(h)||/^event$/i.test(h));
   const suspIdx   = hdrs.findIndex(h=>/^is.?suspicious$/i.test(h));
   const loginTIdx = hdrs.findIndex(h=>/^login.?type$/i.test(h));
-  const chalMIdx  = hdrs.findIndex(h=>/^login.?challenge.?method$/i.test(h));
-  const chalSIdx  = hdrs.findIndex(h=>/^login.?challenge.?status$/i.test(h));
   const affectIdx = hdrs.findIndex(h=>/^affected.?email/i.test(h));
-  const ipIdx     = hdrs.findIndex(h=>/^ip[\s_]*(address)?$/i.test(h));
   const sf2Idx    = hdrs.findIndex(h=>/^is.?second.?factor$/i.test(h));
   if(dateIdx<0) return;
 
@@ -1736,10 +1741,7 @@ function parseLoginAudit(lines, hdrs){
       event: _normalizeLoginEvent(rawEvent),
       isSuspicious:(row[suspIdx]||'').toLowerCase()==='true',
       loginType:loginTIdx>=0?(row[loginTIdx]||''):'',
-      challengeMethod:chalMIdx>=0?(row[chalMIdx]||''):'',
-      challengeStatus:chalSIdx>=0?(row[chalSIdx]||''):'',
       affectedEmail:affectIdx>=0?(row[affectIdx]||'').toLowerCase().trim():'',
-      ip:ipIdx>=0?(row[ipIdx]||''):'',
       isSecondFactor:sf2Idx>=0?(row[sf2Idx]||'').toLowerCase()==='true':false,
     });
   });
@@ -3595,6 +3597,28 @@ function closeDrillPage(){
   document.body.style.overflow='';
 }
 
+function dpExportCSV(){
+  const rows=_dp._rows, cols=_dp._cols;
+  if(!rows||!cols) return;
+  const stripHtml=s=>s.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+  const esc=v=>{const s=String(v==null?'':v);return(s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:s;};
+  const lines=[
+    cols.map(esc).join(','),
+    ...rows.map(r=>r.cells.map(c=>esc(stripHtml(c))).join(','))
+  ];
+  const bom='﻿';
+  const blob=new Blob([bom+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const title=(document.getElementById('dp-title').textContent||_dp.source||'export').trim();
+  const date=new Date().toISOString().slice(0,10);
+  a.download=`${title}_${date}.csv`.replace(/[/\\?%*:|"<>]/g,'_');
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+}
+
 function dpSetPreset(p){
   _dp.preset=p;
   dpRenderPresets();
@@ -3918,6 +3942,10 @@ function dpRender(){
     const av=String(a._sort[col]||''), bv=String(b._sort[col]||'');
     return asc ? av.localeCompare(bv) : bv.localeCompare(av);
   });
+
+  // store for CSV export
+  _dp._rows = rows;
+  _dp._cols = cols;
 
   // ── render stats ────────────────────────────────────────────
   const statsEl=document.getElementById('dp-stats');
