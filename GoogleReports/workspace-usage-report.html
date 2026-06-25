@@ -5986,7 +5986,6 @@ function switchStorage(p){
 async function autoLoadFromStorage(){
   const cfg = getStorageConfig();
   if(!cfg || !cfg.bucket || !cfg.accessKey || !cfg.secretKey) return;
-  reset();
   showLoader('טוען מ-S3...');
 
   const btn = document.querySelector('.btn-s3');
@@ -6169,7 +6168,11 @@ function renderS3FileList(keys, doc){
 async function loadAllS3Files(){
   const keys = window._s3Keys || [];
   if(!keys.length) return;
-  reset();
+  // clear data stores so re-loading doesn't duplicate events
+  rawData=[];auditSets={};volumeData={};geminiData=null;geminiAuditData=null;
+  meetData=null;driveAuditData=null;gmailAuditData=null;chatData=null;
+  studioData=null;loginAuditData=null;allUsersData=[];
+  appsLocked=false;fileCount=0;
   showLoader('טוען מ-S3...');
   window._s3LoadPending = keys.length;
   setLoaderProgress(5);
