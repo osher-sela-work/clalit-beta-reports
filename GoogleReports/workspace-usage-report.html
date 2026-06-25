@@ -1462,6 +1462,11 @@ function isDriveAuditFormat(hdrs){
          hdrs.some(h=>/^visibility$/i.test(h));
 }
 
+function dedupeEvents(events, keyFn){
+  const seen=new Set();
+  return events.filter(e=>{const k=keyFn(e);if(seen.has(k))return false;seen.add(k);return true;});
+}
+
 function parseDriveAudit(lines,hdrs){
   const dateIdx   = hdrs.findIndex(h=>/^date$/i.test(h));
   const actorIdx  = hdrs.findIndex(h=>/^actor$/i.test(h));
@@ -1488,6 +1493,7 @@ function parseDriveAudit(lines,hdrs){
       owner:   row[ownerIdx]||'',
     });
   });
+  driveAuditData.events=dedupeEvents(driveAuditData.events,e=>e.date+'|'+e.actor+'|'+e.title+'|'+e.event);
 }
 
 function isMeetAuditFormat(hdrs){
@@ -1538,6 +1544,7 @@ function parseMeetAudit(lines,hdrs){
       organizer: row[orgIdx]||'',
     });
   });
+  meetData.events=dedupeEvents(meetData.events,e=>e.date+'|'+e.actor+'|'+e.meetingCode);
 }
 
 function parseUserAccounts(lines,hdrs){
@@ -1598,6 +1605,7 @@ function parseGeminiAudit(lines, hdrs){
       action:  row[actionIdx]||'',
     });
   });
+  geminiAuditData.events=dedupeEvents(geminiAuditData.events,e=>e.date+'|'+e.actor+'|'+e.feature+'|'+e.action);
 }
 
 function parseGeminiCSV(lines,hdrs){
@@ -1654,6 +1662,7 @@ function parseChatAudit(lines,hdrs){
       conversationType:row[convIdx]||'',
     });
   });
+  chatData.events=dedupeEvents(chatData.events,e=>e.date+'|'+e.actor+'|'+e.event+'|'+e.roomId);
 }
 
 function isStudioAuditFormat(hdrs){
@@ -1689,6 +1698,7 @@ function parseStudioAudit(lines,hdrs){
       runLength:row[runLenIdx]||'',
     });
   });
+  studioData.events=dedupeEvents(studioData.events,e=>e.date+'|'+e.actor+'|'+e.event+'|'+e.flowId);
 }
 
 function isLoginAuditFormat(hdrs){
@@ -1764,6 +1774,7 @@ function parseLoginAudit(lines, hdrs){
       isSecondFactor:sf2Idx>=0?(row[sf2Idx]||'').toLowerCase()==='true':false,
     });
   });
+  loginAuditData.events=dedupeEvents(loginAuditData.events,e=>e.date+'|'+e.actor+'|'+e.event+'|'+e.affectedEmail);
 }
 
 function parsePerUser(lines,hdrs,fname){
@@ -2341,7 +2352,7 @@ function renderAppCards(){
     ? APP_KEYS.filter(k=>visApps.has(k)&&volumeData[k]&&volumeData[k].metrics.length>0).map(k=>
         k==='gmail' ? buildGmailCard() : buildGenericCard(k))
     : [];
-  setLoaderProgress(78);
+  if((window._s3LoadPending||0)<=0) setLoaderProgress(78);
   el.innerHTML = [
     allUsersData.length>0                    ? buildAnomaliesSection()  : '',
     buildTopAppsCard(),
@@ -2360,7 +2371,7 @@ function renderAppCards(){
     hasUserAct                                ? buildUserActivityCard() : '',
     hasInactive                               ? buildInactiveUsersCard(): '',
   ].join('');
-  setLoaderProgress(88);
+  if((window._s3LoadPending||0)<=0) setLoaderProgress(88);
 
   setTimeout(()=>{
     if(volumeData.gmail)                          renderGmailCharts();
