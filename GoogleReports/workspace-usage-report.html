@@ -5908,6 +5908,7 @@ async function autoLoadFromStorage(){
     if(btn){ btn.textContent='☁ S3 Bucket'; btn.disabled=false; }
   } catch(e){
     hideLoader();
+    console.error('[S3 autoload error]', e);
     if(btn){ btn.textContent='☁ Failed to load'; btn.disabled=false; btn.title=e.message; }
     // Show a banner so the user knows why data is missing
     const isCors = e instanceof TypeError;
