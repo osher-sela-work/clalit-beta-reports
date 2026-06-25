@@ -65,6 +65,9 @@ jobs:
             f.write('\n'.join(lines) + '\n' if lines else '// no storage config injected\n')
           PYEOF
 
+      - name: Create index.html
+        run: cp GoogleReports/workspace-usage-report.html GoogleReports/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
