@@ -2158,8 +2158,9 @@ function buildAnomaliesSection(){
   const anomalies = detectAnomalies();
   if(!anomalies.length) return '';
 
-  const levelColor = {critical:'#D32F2F', warning:'#F57C00', info:'#1565C0'};
-  const levelBg    = {critical:'#FFEBEE', warning:'#FFF3E0', info:'#E3F2FD'};
+  const levelColor = {critical:'#EF5350', warning:'#FFA726', info:'#42A5F5'};
+  const levelBg    = {critical:'rgba(239,83,80,.12)', warning:'rgba(255,167,38,.12)', info:'rgba(66,165,245,.12)'};
+  const levelBorder= {critical:'rgba(239,83,80,.4)',  warning:'rgba(255,167,38,.4)',  info:'rgba(66,165,245,.4)'};
   const levelLabel = {critical:'קריטי', warning:'אזהרה', info:'מידע'};
 
   const nameOf = em => {
@@ -2174,7 +2175,7 @@ function buildAnomaliesSection(){
     const showUsers = (a.users||[]).slice(0,5);
     const more = (a.users||[]).length - showUsers.length;
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0">
-      <div style="background:${bg};border-bottom:2px solid ${col};padding:14px 16px;display:flex;align-items:flex-start;gap:10px">
+      <div style="background:${bg};border-bottom:2px solid ${levelBorder[a.level]||levelBorder.info};padding:14px 16px;display:flex;align-items:flex-start;gap:10px">
         <span style="font-size:22px;line-height:1">${a.icon}</span>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -2216,9 +2217,9 @@ function buildAnomaliesSection(){
         <div style="font-size:13px;color:var(--text2)">זיהוי אנומליות והתנהגות חריגה בפעילות משתמשים</div>
       </div>
       <div style="margin-right:auto;display:flex;gap:8px">
-        ${criticals.length?`<span style="background:#FFEBEE;color:#D32F2F;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid #EF9A9A">${criticals.length} קריטי</span>`:''}
-        ${warnings.length?`<span style="background:#FFF3E0;color:#F57C00;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid #FFCC02">${warnings.length} אזהרות</span>`:''}
-        ${infos.length?`<span style="background:#E3F2FD;color:#1565C0;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid #90CAF9">${infos.length} מידע</span>`:''}
+        ${criticals.length?`<span style="background:rgba(239,83,80,.15);color:#EF5350;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,83,80,.4)">${criticals.length} קריטי</span>`:''}
+        ${warnings.length?`<span style="background:rgba(255,167,38,.15);color:#FFA726;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,167,38,.4)">${warnings.length} אזהרות</span>`:''}
+        ${infos.length?`<span style="background:rgba(66,165,245,.15);color:#42A5F5;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(66,165,245,.4)">${infos.length} מידע</span>`:''}
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
@@ -2228,6 +2229,70 @@ function buildAnomaliesSection(){
       ${warnings.map(renderTile).join('')}
       ${sectionTitle('מידע','#1565C0',infos)}
       ${infos.map(renderTile).join('')}
+    </div>
+  </div>`;
+}
+
+function buildTopAppsCard(){
+  const apps = [];
+  const inWin = (arr, fn) => winFilter(arr, fn).length;
+
+  if(gmailAuditData){
+    const c = inWin(gmailAuditData.events.filter(e=>e.event!=='receive'), e=>e.date);
+    if(c) apps.push({name:'Gmail',  icon:'📧', color:'#EA4335', count:c});
+  } else if(volumeData.gmail){
+    const c = winFilter(volumeData.gmail.history||[], h=>h.date)
+                .reduce((s,r)=>s+(r['Emails Sent']||r['Sent']||0),0);
+    if(c) apps.push({name:'Gmail',  icon:'📧', color:'#EA4335', count:c});
+  }
+  if(driveAuditData){
+    const c = inWin(driveAuditData.events, e=>e.date);
+    if(c) apps.push({name:'Drive',  icon:'📁', color:'#4285F4', count:c});
+  }
+  if(meetData){
+    const c = inWin(meetData.events, e=>e.date);
+    if(c) apps.push({name:'Meet',   icon:'📹', color:'#00BFA5', count:c});
+  }
+  if(chatData){
+    const c = inWin(chatData.events, e=>e.date);
+    if(c) apps.push({name:'Chat',   icon:'💬', color:'#7C4DFF', count:c});
+  }
+  if(geminiAuditData){
+    const c = inWin(geminiAuditData.events, e=>e.date);
+    if(c) apps.push({name:'Gemini', icon:'✨', color:'#8AB4F8', count:c});
+  }
+  if(studioData){
+    const c = inWin(studioData.events, e=>e.date);
+    if(c) apps.push({name:'Studio', icon:'🎨', color:'#F4B400', count:c});
+  }
+
+  if(apps.length < 2) return '';
+  apps.sort((a,b)=>b.count-a.count);
+  const top = apps.slice(0,5);
+  const max = top[0].count;
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+  return `<div style="grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="font-size:24px">🏆</div>
+      <div>
+        <div style="font-weight:800;font-size:18px;color:var(--text)">Top Apps</div>
+        <div style="font-size:13px;color:var(--text2)">אפליקציות מובילות לפי נפח פעילות</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      ${top.map((a,i)=>{
+        const pct=Math.round(a.count/max*100);
+        return `<div style="display:flex;align-items:center;gap:12px">
+          <div style="width:28px;text-align:center;font-size:18px;flex-shrink:0">${medals[i]}</div>
+          <div style="font-size:20px;flex-shrink:0">${a.icon}</div>
+          <div style="width:72px;font-weight:700;font-size:14px;color:var(--text);flex-shrink:0">${a.name}</div>
+          <div style="flex:1;height:12px;background:var(--surface2);border-radius:6px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${a.color};border-radius:6px"></div>
+          </div>
+          <div style="min-width:90px;text-align:left;font-size:13px;font-weight:600;color:var(--text2);flex-shrink:0">${a.count.toLocaleString()} אירועים</div>
+        </div>`;
+      }).join('')}
     </div>
   </div>`;
 }
@@ -2258,6 +2323,7 @@ function renderAppCards(){
   setLoaderProgress(78);
   el.innerHTML = [
     allUsersData.length>0                    ? buildAnomaliesSection()  : '',
+    buildTopAppsCard(),
     hasInactive                               ? buildTotalActiveBanner(): '',
     ...appCards,
     (hasDrive        && visApps.has('drive'))  ? buildDriveCard()       : '',
@@ -5908,7 +5974,6 @@ async function autoLoadFromStorage(){
     if(btn){ btn.textContent='☁ S3 Bucket'; btn.disabled=false; }
   } catch(e){
     hideLoader();
-    console.error('[S3 autoload error]', e);
     if(btn){ btn.textContent='☁ Failed to load'; btn.disabled=false; btn.title=e.message; }
     // Show a banner so the user knows why data is missing
     const isCors = e instanceof TypeError;
