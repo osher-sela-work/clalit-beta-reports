@@ -733,10 +733,21 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     <div id="s3-files-section" style="display:none">
       <div class="s3-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>CSV Files in Bucket</span>
-        <div style="display:flex;align-items:center;gap:10px">
-          <label for="s3-upload-input" class="s3-upload-btn">⬆ Upload</label>
-          <button onclick="listStorageFiles()" style="background:none;border:none;color:#4285F4;font-size:11px;cursor:pointer;font-weight:600">↻ Refresh</button>
-        </div>
+        <button onclick="listStorageFiles()" style="background:none;border:none;color:#4285F4;font-size:11px;cursor:pointer;font-weight:600">↻ Refresh</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <label for="s3-upload-input" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+          padding:9px;background:#34A85322;border:1px solid #34A853;border-radius:8px;
+          color:#34A853;font-size:13px;font-weight:600;cursor:pointer;transition:.15s"
+          onmouseover="this.style.background='#34A85344'" onmouseout="this.style.background='#34A85322'">
+          ⬆ Upload Files
+        </label>
+        <button onclick="deleteAllS3Files()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+          padding:9px;background:#EF535022;border:1px solid #EF5350;border-radius:8px;
+          color:#EF5350;font-size:13px;font-weight:600;cursor:pointer;transition:.15s"
+          onmouseover="this.style.background='#EF535044'" onmouseout="this.style.background='#EF535022'">
+          🗑 Delete All
+        </button>
       </div>
       <input type="file" id="s3-upload-input" accept=".csv,.tsv" multiple style="display:none" onchange="handleS3Upload(this.files)">
       <div id="s3-file-list" class="s3-file-list"></div>
@@ -1716,7 +1727,7 @@ function parseLoginAudit(lines, hdrs){
   const eventIdx  = hdrs.findIndex(h=>/^event\s*name$/i.test(h)||/^event\s*status$/i.test(h)||/^event$/i.test(h));
   const suspIdx   = hdrs.findIndex(h=>/^is.?suspicious$/i.test(h));
   const loginTIdx = hdrs.findIndex(h=>/^login.?type$/i.test(h));
-  const affectIdx = hdrs.findIndex(h=>/^affected.?email/i.test(h));
+  const affectIdx = hdrs.findIndex(h=>/^affected.?(email|user)/i.test(h));
   const sf2Idx    = hdrs.findIndex(h=>/^is.?second.?factor$/i.test(h));
   if(dateIdx<0) return;
 
@@ -5769,26 +5780,21 @@ function reset(){
   hasUserLevel=false;dataSource='';drillApp=null;fileCount=0;
   snapshots=[];appsLocked=false;volumeData={};geminiData=null;geminiAuditData=null;meetData=null;driveAuditData=null;gmailAuditData=null;chatData=null;studioData=null;loginAuditData=null;allUsersData=[];
   if(window._userActivityChart){window._userActivityChart.destroy();window._userActivityChart=null;}
-  document.getElementById('inactive-panel').style.display='none';
-  document.getElementById('meet-drill').style.display='none';
-  document.getElementById('drive-drill').style.display='none';
-  document.getElementById('gemini-drill').style.display='none';
-  document.getElementById('ua-drill').style.display='none';
-  document.getElementById('snapshot-zone').style.display='none';
-  document.getElementById('app-cards').style.display='none';
+  const _hide=(...ids)=>ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  const _show=(...ids)=>ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+  _hide('inactive-panel','meet-drill','drive-drill','gemini-drill','ua-drill',
+        'snapshot-zone','app-cards','security-row',
+        'controls','kpi-row','chart-wrap','spark-row','tbl-wrap');
+  _show('upload-zone');
   APPS={...APP_APPS}; APP_KEYS=Object.keys(APPS);
   visApps=new Set(APP_KEYS);
-  document.getElementById('security-row').style.display='none';
   if(mainChart){mainChart.destroy();mainChart=null;}
   Object.values(sparkCharts).forEach(c=>c.destroy());sparkCharts={};
   visApps=new Set(APP_KEYS);gran='weekly';
   document.querySelectorAll('.seg').forEach(b=>b.classList.toggle('on',b.dataset.g==='weekly'));
-  ['upload-zone'].forEach(id=>document.getElementById(id).style.display='');
-  ['controls','kpi-row','chart-wrap','spark-row','tbl-wrap','drill'].forEach(id=>
-    document.getElementById(id).style.display='none');
-  document.getElementById('tbl-body').style.display='none';
-  document.getElementById('tbl-lbl').textContent='Show ▾';
-  document.getElementById('file-input').value='';
+  const tblBody=document.getElementById('tbl-body');if(tblBody)tblBody.style.display='none';
+  const tblLbl=document.getElementById('tbl-lbl');if(tblLbl)tblLbl.textContent='Show ▾';
+  const fi=document.getElementById('file-input');if(fi)fi.value='';
 }
 
 function exportBundle(){
@@ -6113,6 +6119,24 @@ async function uploadToS3(file){
   }catch(e){ s3SetStatus('Upload failed: '+e.message,'err'); }
 }
 
+async function deleteAllS3Files(){
+  const keys=window._s3Keys||[];
+  if(!keys.length) return;
+  if(!confirm(`Delete all ${keys.length} file${keys.length!==1?'s':''} from the bucket? This cannot be undone.`)) return;
+  const cfg=getStorageConfig();
+  let deleted=0;
+  for(const key of keys){
+    s3SetStatus(`Deleting ${deleted+1} / ${keys.length}…`,'loading');
+    try{
+      const res=await signedStorageFetch(cfg,'DELETE',key,{});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      deleted++;
+    }catch(e){ s3SetStatus('Delete failed: '+e.message,'err'); return; }
+  }
+  s3SetStatus(`✓ Deleted all ${deleted} files`,'ok');
+  await listStorageFiles();
+}
+
 async function deleteS3File(key){
   const name=key.split('/').pop();
   if(!confirm(`Delete "${name}" from bucket?`)) return;
@@ -6159,7 +6183,7 @@ function renderS3FileList(keys, doc){
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="s3-file-load">Load →</span>
-        <button class="s3-file-del" onclick="event.stopPropagation();deleteS3File(${JSON.stringify(key)})" title="Delete">🗑</button>
+        <button class="s3-file-del" onclick="event.stopPropagation();deleteS3File('${key}')" title="Delete">🗑</button>
       </div>
     </div>`;
   }).join('');
