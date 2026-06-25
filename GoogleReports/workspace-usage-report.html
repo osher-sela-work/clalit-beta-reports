@@ -487,7 +487,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
   </div>
   <div class="hdr-btns">
     <button id="btn-theme" onclick="toggleTheme()" title="החלף ערכת נושא">🌙</button>
-    <button id="btn-storage" class="btn btn-s3" onclick="openS3()">☁ S3 Bucket</button>
+    <button id="btn-storage" class="btn btn-s3" onclick="openS3()">☁ ניהול קבצים</button>
     <input id="file-input" type="file" multiple accept=".csv" onchange="handleFiles(this.files)" style="display:none"/>
     <button class="btn btn-blue" onclick="doExport()">↓ ייצוא PNG</button>
     
@@ -728,7 +728,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     </div>
 
     <button id="s3-connect-btn" class="s3-connect-btn" onclick="listStorageFiles()" style="display:none">
-      ↻ Connect / Refresh
+      ↻ התחברות/רענון
     </button>
     <div id="s3-files-section" style="display:none">
       <div class="s3-section-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -740,13 +740,13 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
           padding:9px;background:#34A85322;border:1px solid #34A853;border-radius:8px;
           color:#34A853;font-size:13px;font-weight:600;cursor:pointer;transition:.15s"
           onmouseover="this.style.background='#34A85344'" onmouseout="this.style.background='#34A85322'">
-          ⬆ Upload Files
+          ⬆ העלאת קבצים
         </label>
         <button onclick="deleteAllS3Files()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
           padding:9px;background:#EF535022;border:1px solid #EF5350;border-radius:8px;
           color:#EF5350;font-size:13px;font-weight:600;cursor:pointer;transition:.15s"
           onmouseover="this.style.background='#EF535044'" onmouseout="this.style.background='#EF535022'">
-          🗑 Delete All
+          🗑 מחיקת כלל הקבצים
         </button>
       </div>
       <input type="file" id="s3-upload-input" accept=".csv,.tsv" multiple style="display:none" onchange="handleS3Upload(this.files)">
@@ -5981,7 +5981,7 @@ function clearStorageCreds(){
 function switchStorage(p){
   storageProvider = p;
   const storageBtn = document.getElementById('btn-storage');
-  if(storageBtn) storageBtn.textContent = p==='gcs' ? '☁ Google Cloud' : '☁ S3 Bucket';
+  if(storageBtn) storageBtn.textContent = p==='gcs' ? '☁ Google Cloud' : '☁ ניהול קבצים';
   document.getElementById('tab-s3').classList.toggle('on', p==='s3');
   document.getElementById('tab-gcs').classList.toggle('on', p==='gcs');
   document.getElementById('s3-files-section').style.display='none';
@@ -6017,7 +6017,7 @@ async function autoLoadFromStorage(){
       .map(el=>el.textContent)
       .filter(k=>k.toLowerCase().endsWith('.csv')||k.toLowerCase().endsWith('.tsv'));
 
-    if(!keys.length){ hideLoader(); if(btn){btn.textContent='☁ S3 Bucket';btn.disabled=false;} return; }
+    if(!keys.length){ hideLoader(); if(btn){btn.textContent='☁ ניהול קבצים';btn.disabled=false;} return; }
 
     window._s3Keys = keys;
     window._s3LoadPending = keys.length;
@@ -6034,7 +6034,7 @@ async function autoLoadFromStorage(){
       setLoaderProgress(10 + Math.round(65 * _loaded / keys.length));
     }
 
-    if(btn){ btn.textContent='☁ S3 Bucket'; btn.disabled=false; }
+    if(btn){ btn.textContent='☁ ניהול קבצים'; btn.disabled=false; }
   } catch(e){
     hideLoader();
     if(btn){ btn.textContent='☁ Failed to load'; btn.disabled=false; btn.title=e.message; }
@@ -6042,7 +6042,7 @@ async function autoLoadFromStorage(){
     const isCors = e instanceof TypeError;
     const msg = isCors
       ? '⚠ S3 blocked (CORS). Add "null" to AllowedOrigins in your S3 bucket CORS policy, then refresh.'
-      : `⚠ S3 auto-load failed: ${e.message}. Click ☁ S3 Bucket to connect manually.`;
+      : `⚠ S3 auto-load failed: ${e.message}. Click ☁ ניהול קבצים to connect manually.`;
     let banner = document.getElementById('s3-auto-err');
     if(!banner){
       banner = document.createElement('div');
@@ -6179,7 +6179,7 @@ function renderS3FileList(keys, doc){
       <button onclick="loadAllS3Files()" style="width:100%;padding:8px;background:#4285F422;
         border:1px solid #4285F4;border-radius:6px;color:#4285F4;font-size:12px;
         font-weight:600;cursor:pointer">
-        ⬇ Load all ${keys.length} files
+        ⬇ העלאה את כל הקבצים
       </button>
     </div>` : '';
 
