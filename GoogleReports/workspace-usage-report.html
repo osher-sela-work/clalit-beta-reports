@@ -127,6 +127,24 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .btn-green{background:#1e3a2a;color:#00e676;border:1px solid #1e4a30;}
 .btn-green:hover{background:#244530;}
 
+/* help modal */
+#help-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;}
+#help-overlay.open{display:flex;}
+#help-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  width:min(680px,94vw);max-height:88vh;overflow-y:auto;padding:28px 32px;direction:rtl;position:relative;}
+#help-box h2{font-size:16px;font-weight:700;color:var(--text);margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+#help-box h3{font-size:13px;font-weight:600;color:#4285F4;margin:18px 0 8px;}
+#help-box p,#help-box li{font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:4px;}
+#help-box ul{padding-right:18px;margin:6px 0;}
+#help-box .help-note{background:#1a1530;border-right:3px solid #9c92d4;border-radius:6px;
+  padding:8px 12px;margin-top:6px;font-size:11.5px;color:#9c92d4;}
+#help-box .close-btn{position:absolute;top:14px;left:16px;background:transparent;border:none;
+  font-size:20px;color:var(--muted);cursor:pointer;line-height:1;padding:4px 8px;border-radius:6px;}
+#help-box .close-btn:hover{background:var(--border);color:var(--text);}
+.btn-help{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:50%;
+  width:30px;height:30px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.btn-help:hover{border-color:#4285F4;color:#4285F4;}
+
 /* lag notice */
 .notice{background:#1a1530;border-bottom:1px solid #2a1f5c;padding:8px 28px;
   font-size:11.5px;color:#9c92d4;display:flex;align-items:center;gap:6px;}
@@ -486,6 +504,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     </div>
   </div>
   <div class="hdr-btns">
+    <button class="btn-help" onclick="document.getElementById('help-overlay').classList.add('open')" title="עזרה — איך להוציא קבצים">?</button>
     <button id="btn-theme" onclick="toggleTheme()" title="החלף ערכת נושא">🌙</button>
     <button id="btn-storage" class="btn btn-s3" onclick="openS3()">☁ ניהול קבצים</button>
     <input id="file-input" type="file" multiple accept=".csv" onchange="handleFiles(this.files)" style="display:none"/>
@@ -494,10 +513,48 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
   </div>
 </header>
 
-<div class="notice">
-  ⚠ <strong>עיכוב נתונים:</strong> דוחות מצטברים מתעכבים <strong>1–3 ימים</strong>; מדדי אימוץ עד <strong>6 ימים</strong>.
-  שמירה רגילה: <strong>6 חודשים</strong>. יומני אימייל: <strong>30 ימים</strong>.
+<!-- Help modal -->
+<div id="help-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div id="help-box">
+    <button class="close-btn" onclick="document.getElementById('help-overlay').classList.remove('open')">✕</button>
+    <h2>📋 איך להכין ולהעלות את הקבצים?</h2>
+
+    <h3>שלב 1 — הוצאת לוגי אפליקציות</h3>
+    <ul>
+      <li>נכנסים לאתר <strong>admin.google.com</strong> ובוחרים <strong>Reporting</strong> ← <strong>Audit and investigation</strong>.</li>
+      <li>בוחרים את הלוג הרצוי מהרשימה:</li>
+    </ul>
+    <ul style="margin-right:20px">
+      <li>Chat log events</li>
+      <li>Drive log events</li>
+      <li>Meet log events</li>
+      <li>Gemini for Workspace log events</li>
+      <li>User log events</li>
+      <li>Workspace Studio log events</li>
+      <li>Gmail log events</li>
+    </ul>
+    <ul>
+      <li>בדף שנפתח — <strong>מבטלים את פילטר התאריך</strong> ולוחצים <strong>Search</strong>.</li>
+      <li>לוחצים על הכפתור הכחול <strong>Export All</strong>, בוחרים <strong>Comma-separated values (.csv)</strong> ונותנים שם לקובץ.</li>
+    </ul>
+    <div class="help-note">⚠ אם המערכת דורשת הזנת סיסמה מחדש — חוזרים על תהליך ה-Export מחדש.</div>
+
+    <h3>שלב 2 — הוצאת קובץ משתמשים</h3>
+    <ul>
+      <li>נכנסים ל-<strong>admin.google.com</strong> ← <strong>Reporting</strong> ← <strong>User reports</strong> ← <strong>Accounts</strong>.</li>
+      <li>לוחצים על הכפתור הכחול <strong>Download</strong>, בוחרים <strong>Comma-separated values (.csv)</strong> ו-<strong>All columns</strong>.</li>
+    </ul>
+    <div class="help-note">⚠ אם המערכת דורשת הזנת סיסמה מחדש — חוזרים על תהליך ה-Download מחדש.</div>
+
+    <h3>שלב 3 — העלאת הקבצים לדוח</h3>
+    <ul>
+      <li>חוזרים לאתר הדוחות ולוחצים על <strong>☁ ניהול קבצים</strong>.</li>
+      <li>לוחצים על הכפתור הירוק <strong>העלאת קבצים</strong> — ניתן לבחור קובץ בנפרד או את כולם ביחד.</li>
+      <li>לאחר שכל הקבצים עלו, לוחצים על <strong>העלאת כל הקבצים</strong> ומחכים שהדף יטען.</li>
+    </ul>
+  </div>
 </div>
+
 
 <main>
 
@@ -6179,7 +6236,7 @@ function renderS3FileList(keys, doc){
       <button onclick="loadAllS3Files()" style="width:100%;padding:8px;background:#4285F422;
         border:1px solid #4285F4;border-radius:6px;color:#4285F4;font-size:12px;
         font-weight:600;cursor:pointer">
-        ⬇ העלאה את כל הקבצים
+        ⬇ טען את כל הקבצים
       </button>
     </div>` : '';
 
