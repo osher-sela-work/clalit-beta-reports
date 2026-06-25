@@ -6006,6 +6006,8 @@ async function autoLoadFromStorage(){
       .map(el=>el.textContent)
       .filter(k=>k.toLowerCase().endsWith('.csv')||k.toLowerCase().endsWith('.tsv'));
 
+    if(!keys.length){ hideLoader(); if(btn){btn.textContent='☁ S3 Bucket';btn.disabled=false;} return; }
+
     window._s3Keys = keys;
     window._s3LoadPending = keys.length;
     setLoaderProgress(10);
