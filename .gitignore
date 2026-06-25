@@ -1,0 +1,11 @@
+# --- Credentials (NEVER commit these) ---
+GoogleReports/.env
+GoogleReports/storage-config.js
+
+# --- Dependencies ---
+node_modules/
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,78 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate storage-config.js from GitHub Secrets
+        env:
+          S3_BUCKET:     ${{ secrets.S3_BUCKET }}
+          S3_REGION:     ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_PREFIX:     ${{ secrets.S3_PREFIX }}
+          GCS_BUCKET:     ${{ secrets.GCS_BUCKET }}
+          GCS_ACCESS_KEY: ${{ secrets.GCS_ACCESS_KEY }}
+          GCS_SECRET_KEY: ${{ secrets.GCS_SECRET_KEY }}
+          GCS_PREFIX:     ${{ secrets.GCS_PREFIX }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, json
+
+          lines = []
+
+          s3 = {
+            'bucket':    os.environ.get('S3_BUCKET', ''),
+            'region':    os.environ.get('S3_REGION', 'us-east-1'),
+            'accessKey': os.environ.get('S3_ACCESS_KEY', ''),
+            'secretKey': os.environ.get('S3_SECRET_KEY', ''),
+            'prefix':    os.environ.get('S3_PREFIX', ''),
+          }
+          if s3['bucket'] and s3['accessKey'] and s3['secretKey']:
+            lines.append('window.__S3_CFG__ = ' + json.dumps(s3) + ';')
+
+          gcs = {
+            'bucket':    os.environ.get('GCS_BUCKET', ''),
+            'accessKey': os.environ.get('GCS_ACCESS_KEY', ''),
+            'secretKey': os.environ.get('GCS_SECRET_KEY', ''),
+            'prefix':    os.environ.get('GCS_PREFIX', ''),
+          }
+          if gcs['bucket'] and gcs['accessKey'] and gcs['secretKey']:
+            lines.append('window.__GCS_CFG__ = ' + json.dumps(gcs) + ';')
+
+          with open('GoogleReports/storage-config.js', 'w') as f:
+            f.write('\n'.join(lines) + '\n' if lines else '// no storage config injected\n')
+          PYEOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./GoogleReports
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
