@@ -936,6 +936,8 @@ let chatData        = null; // {events:[{date,actor,event,roomId,roomName,extern
 let studioData      = null; // {events:[{date,actor,event,flowId,flowName,runType}]}
 let loginAuditData  = null; // {events:[{date,actor,event,isSuspicious,loginType,challengeMethod,challengeStatus,affectedEmail,ip}]}
 let allUsersData  = [];   // [{email,name,status,lastUsed:{gmail,drive,classroom}}]
+let _anomaliesCache = []; // cached anomalies list for drill-down access
+let _alertDrillAnomaly = null; // the anomaly tile the user last clicked
 
 // ── Sample data ───────────────────────────────────────────────
 const SAMPLE_NAMES = [
@@ -1966,7 +1968,7 @@ function detectAnomalies(){
   const inWin = d => (!start||d>=start) && (!end||d<=end);
   const anomalies = [];
 
-  const users = allUsersData.map(u=>u.email.toLowerCase().trim()).filter(Boolean);
+  const users = allUsersData.filter(u=>(u.status||'').toLowerCase().includes('active')).map(u=>u.email.toLowerCase().trim()).filter(Boolean);
   if(!users.length) return anomalies;
 
   /* helper – collect all events for a user across sources */
@@ -2243,8 +2245,16 @@ function detectAnomalies(){
   return anomalies;
 }
 
+function openAlertDrill(idx){
+  const a = _anomaliesCache[idx];
+  if(!a) return;
+  _alertDrillAnomaly = a;
+  openDrillPage('alert-drill', {title: a.title});
+}
+
 function buildAnomaliesSection(){
   const anomalies = detectAnomalies();
+  _anomaliesCache = anomalies;
   if(!anomalies.length) return '';
 
   const levelColor = {critical:'#EF5350', warning:'#FFA726', info:'#42A5F5'};
@@ -2257,13 +2267,13 @@ function buildAnomaliesSection(){
     return u?.name || em.split('@')[0];
   };
 
-  const renderTile = a => {
+  const renderTile = (a, idx) => {
     const col  = levelColor[a.level]||levelColor.info;
     const bg   = levelBg[a.level]||levelBg.info;
     const tag  = levelLabel[a.level]||'';
     const showUsers = (a.users||[]).slice(0,5);
     const more = (a.users||[]).length - showUsers.length;
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0">
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0;cursor:pointer;transition:box-shadow .15s" onclick="openAlertDrill(${idx})" onmouseenter="this.style.boxShadow='0 0 0 2px ${col}66'" onmouseleave="this.style.boxShadow=''">
       <div style="background:${bg};border-bottom:2px solid ${levelBorder[a.level]||levelBorder.info};padding:14px 16px;display:flex;align-items:flex-start;gap:10px">
         <span style="font-size:22px;line-height:1">${a.icon}</span>
         <div style="flex:1;min-width:0">
@@ -2313,11 +2323,11 @@ function buildAnomaliesSection(){
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
       ${sectionTitle('אירועים קריטיים','#D32F2F',criticals)}
-      ${criticals.map(renderTile).join('')}
+      ${criticals.map(a=>renderTile(a,anomalies.indexOf(a))).join('')}
       ${sectionTitle('אזהרות','#F57C00',warnings)}
-      ${warnings.map(renderTile).join('')}
+      ${warnings.map(a=>renderTile(a,anomalies.indexOf(a))).join('')}
       ${sectionTitle('מידע','#1565C0',infos)}
-      ${infos.map(renderTile).join('')}
+      ${infos.map(a=>renderTile(a,anomalies.indexOf(a))).join('')}
     </div>
   </div>`;
 }
@@ -2657,15 +2667,16 @@ function renderDriveCharts(){
           datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e8eaf6',font:{size:13,weight:'bold'},formatter:v=>v},
           tooltip:{callbacks:{
             label:c=>`${c.label}: ${c.parsed}`,
-            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי':'',
+            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי לא פעילים':c.dataIndex===0&&activeCount>0?'לחץ לראות מי פעילים':'',
           }}},
         onClick:(evt,els)=>{
           if(!els.length)return;
           if(els[0].index===1&&inactiveUsers.length) showDriveInactiveDrill(inactiveUsers);
+          if(els[0].index===0&&activeCount>0) openDrillPage('drive-active',{title:'Drive — משתמשים פעילים'});
         },
       },
     });
-    if(inactiveCount>0) pieCtx.canvas.style.cursor='pointer';
+    pieCtx.canvas.style.cursor='pointer';
   }
 
   // bar chart — events per period
@@ -3555,6 +3566,8 @@ function renderInactiveUsersPie(){
     ...(meetData?.events||[]).map(e=>e.date),
     ...(geminiAuditData?.events||[]).map(e=>e.date),
     ...(gmailAuditData?.events||[]).map(e=>e.date),
+    ...(chatData?.events||[]).map(e=>e.date),
+    ...(studioData?.events||[]).map(e=>e.date),
   ].filter(Boolean).sort();
   const {start,end}=_computeWindow(allDates);
   const inWin=d=>(!start||!end)||(d>=start&&d<=end);
@@ -3564,6 +3577,8 @@ function renderInactiveUsersPie(){
     ...(meetData?.events||[]).filter(e=>inWin(e.date)).map(e=>e.actor.toLowerCase().trim()),
     ...(geminiAuditData?.events||[]).filter(e=>inWin(e.date)).map(e=>e.actor.toLowerCase().trim()),
     ...(gmailAuditData?.events||[]).filter(e=>inWin(e.date)&&e.event!=='receive').map(e=>e.owner.toLowerCase().trim()),
+    ...(chatData?.events||[]).filter(e=>inWin(e.date)).map(e=>e.actor.toLowerCase().trim()),
+    ...(studioData?.events||[]).filter(e=>inWin(e.date)).map(e=>e.actor.toLowerCase().trim()),
   ]);
   const activeCount=allKnown.filter(u=>activeSet.has(u.email.toLowerCase().trim())).length;
   const inactiveCount=allKnown.length-activeCount;
@@ -3660,13 +3675,14 @@ function openDrillPage(source, opts={}){
   document.body.style.overflow='hidden';
 
   const srcLabel = {
-    drive:'Drive','drive-inactive':'Drive – לא פעילים',
-    meet:'Meet','meet-inactive':'Meet – לא פעילים',
-    gemini:'Gemini','gemini-inactive':'Gemini – לא פעילים',
-    gmail:'Gmail','gmail-inactive':'Gmail – לא פעילים',
-    chat:'Chat','chat-inactive':'Chat – לא פעילים',
-    studio:'Workspace Studio','studio-inactive':'Workspace Studio – לא פעילים',
+    drive:'Drive','drive-inactive':'Drive – לא פעילים','drive-active':'Drive – פעילים',
+    meet:'Meet','meet-inactive':'Meet – לא פעילים','meet-active':'Meet – פעילים',
+    gemini:'Gemini','gemini-inactive':'Gemini – לא פעילים','gemini-active':'Gemini – פעילים',
+    gmail:'Gmail','gmail-inactive':'Gmail – לא פעילים','gmail-active':'Gmail – פעילים',
+    chat:'Chat','chat-inactive':'Chat – לא פעילים','chat-active':'Chat – פעילים',
+    studio:'Workspace Studio','studio-inactive':'Workspace Studio – לא פעילים','studio-active':'Studio – פעילים',
     ua:'פעילות משתמשים','ua-inactive':'משתמשים לא פעילים',
+    'alert-drill':'פרטי התראה',
   }[source]||source;
 
   const period = opts.period||'';
@@ -4021,6 +4037,46 @@ function dpRender(){
         ],
       };
     }).filter(r=>!q||r._sort.some(v=>String(v).toLowerCase().includes(q)));
+  } else if(/^(drive|meet|gemini|gmail|chat|studio)-active$/.test(src)){
+    const cfg={
+      'drive-active':  {evData:driveAuditData?.events,  actorFn:e=>e.actor,  color:'#4285F4'},
+      'meet-active':   {evData:meetData?.events,          actorFn:e=>e.actor,  color:'#00BFA5'},
+      'gemini-active': {evData:geminiAuditData?.events,   actorFn:e=>e.actor,  color:'#4285F4'},
+      'gmail-active':  {evData:(gmailAuditData?.events||[]).filter(e=>e.event!=='receive'), actorFn:e=>e.owner, color:'#EA4335'},
+      'chat-active':   {evData:chatData?.events,          actorFn:e=>e.actor,  color:'#7C4DFF'},
+      'studio-active': {evData:studioData?.events,        actorFn:e=>e.actor,  color:'#F4B400'},
+    }[src]||{};
+    cols=['שם','אימייל','אירועים'];
+    const winEv=winFilter(cfg.evData||[],e=>e.date);
+    const counts={};
+    winEv.forEach(e=>{const em=(cfg.actorFn(e)||'').toLowerCase().trim();if(em)counts[em]=(counts[em]||0)+1;});
+    const nameOf2=em=>{const u=allUsersData.find(u=>u.email.toLowerCase()===em.toLowerCase());return u?.name||em.split('@')[0];};
+    rows=Object.entries(counts)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([em,cnt])=>({
+        _sort:[nameOf2(em),em,cnt],
+        cells:[
+          `<strong>${nameOf2(em)}</strong>`,
+          `<span style="color:var(--muted);font-size:11px">${em}</span>`,
+          `<span style="background:${cfg.color}22;color:${cfg.color};font-weight:700;padding:2px 8px;border-radius:10px">${cnt}</span>`,
+        ],
+      }))
+      .filter(r=>!q||r._sort.some(v=>String(v).toLowerCase().includes(q)));
+  } else if(src==='alert-drill'){
+    const a=_alertDrillAnomaly;
+    const col2=a?({'critical':'#EF5350','warning':'#FFA726','info':'#42A5F5'}[a.level]||'#42A5F5'):'#42A5F5';
+    cols=['שם','אימייל','פרטים'];
+    if(a){
+      const nameOf2=em=>{const u=allUsersData.find(u=>u.email.toLowerCase()===em.toLowerCase());return u?.name||em.split('@')[0];};
+      rows=(a.users||[]).map(u=>({
+        _sort:[nameOf2(u.em),u.em,u.label||''],
+        cells:[
+          `<strong>${nameOf2(u.em)}</strong>`,
+          `<span style="color:var(--muted);font-size:11px">${u.em}</span>`,
+          `<span style="color:${col2};font-size:12px">${u.label||''}</span>`,
+        ],
+      })).filter(r=>!q||r._sort.some(v=>String(v).toLowerCase().includes(q)));
+    }
   }
 
   // ── sort ────────────────────────────────────────────────────
@@ -4235,15 +4291,16 @@ function renderMeetCharts(){
           datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e8eaf6',font:{size:13,weight:'bold'},formatter:v=>v},
           tooltip:{callbacks:{
             label:c=>`${c.label}: ${c.parsed}`,
-            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי':'',
+            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי לא פעילים':c.dataIndex===0&&activeCount>0?'לחץ לראות מי פעילים':'',
           }}},
         onClick:(evt,els)=>{
           if(!els.length)return;
           if(els[0].index===1&&inactiveUsers.length) showMeetInactiveDrill(inactiveUsers);
+          if(els[0].index===0&&activeCount>0) openDrillPage('meet-active',{title:'Meet — משתמשים פעילים'});
         },
       },
     });
-    if(inactiveCount>0) pieCtx.canvas.style.cursor='pointer';
+    pieCtx.canvas.style.cursor='pointer';
   }
 
   // Trend — joins per period
@@ -4386,15 +4443,15 @@ function renderChatCharts(){
       options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
         plugins:{legend:{display:false},
           datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e8eaf6',font:{size:13,weight:'bold'},formatter:v=>v},
-          tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}`}}},
+          tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}`,footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי לא פעילים':c.dataIndex===0&&activeCount>0?'לחץ לראות מי פעילים':''}}},
         onClick:(evt,els)=>{
           if(!els.length)return;
-          if(els[0].index===1&&inactiveCount>0)
-            openDrillPage('chat-inactive',{title:'Chat – לא פעילים'});
+          if(els[0].index===1&&inactiveCount>0) openDrillPage('chat-inactive',{title:'Chat – לא פעילים'});
+          if(els[0].index===0&&activeCount>0) openDrillPage('chat-active',{title:'Chat — משתמשים פעילים'});
         },
       },
     });
-    if(inactiveCount>0) pieCtx.canvas.style.cursor='pointer';
+    pieCtx.canvas.style.cursor='pointer';
   }
 
   const MONTHS=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
@@ -4514,15 +4571,15 @@ function renderStudioCharts(){
       options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
         plugins:{legend:{display:false},
           datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e8eaf6',font:{size:13,weight:'bold'},formatter:v=>v},
-          tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}`}}},
+          tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}`,footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי לא פעילים':c.dataIndex===0&&activeCount>0?'לחץ לראות מי פעילים':''}}},
         onClick:(evt,els)=>{
           if(!els.length)return;
-          if(els[0].index===1&&inactiveCount>0)
-            openDrillPage('studio-inactive',{title:'Studio – לא פעילים'});
+          if(els[0].index===1&&inactiveCount>0) openDrillPage('studio-inactive',{title:'Studio – לא פעילים'});
+          if(els[0].index===0&&activeCount>0) openDrillPage('studio-active',{title:'Studio — משתמשים פעילים'});
         },
       },
     });
-    if(inactiveCount>0) pieCtx.canvas.style.cursor='pointer';
+    pieCtx.canvas.style.cursor='pointer';
   }
 
   const MONTHS=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
@@ -4648,15 +4705,16 @@ function renderGeminiAuditCharts(){
           datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e8eaf6',font:{size:13,weight:'bold'},formatter:v=>v},
           tooltip:{callbacks:{
             label:c=>`${c.label}: ${c.parsed}`,
-            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי':'',
+            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי לא פעילים':c.dataIndex===0&&activeCount>0?'לחץ לראות מי פעילים':'',
           }}},
         onClick:(evt,els)=>{
           if(!els.length) return;
           if(els[0].index===1&&inactiveUsers.length) showGeminiAuditInactiveDrill(inactiveUsers);
+          if(els[0].index===0&&activeCount>0) openDrillPage('gemini-active',{title:'Gemini — משתמשים פעילים'});
         },
       },
     });
-    if(inactiveCount>0) pieCtx.canvas.style.cursor='pointer';
+    pieCtx.canvas.style.cursor='pointer';
   }
 
   // Bar — events per period
@@ -5016,16 +5074,16 @@ function renderGmailAuditCharts(){
           datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e8eaf6',font:{size:13,weight:'bold'},formatter:v=>v},
           tooltip:{callbacks:{
             label:c=>`${c.label}: ${c.parsed}`,
-            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי':'',
+            footer:([c])=>c.dataIndex===1&&inactiveCount>0?'לחץ לראות מי לא פעילים':c.dataIndex===0&&activeCount>0?'לחץ לראות מי פעילים':'',
           }}},
         onClick:(evt,els)=>{
           if(!els.length)return;
-          if(els[0].index===1&&inactiveUsers.length)
-            openDrillPage('gmail-inactive',{title:'Gmail — לא השתמשו ב-Gmail'});
+          if(els[0].index===1&&inactiveUsers.length) openDrillPage('gmail-inactive',{title:'Gmail — לא השתמשו ב-Gmail'});
+          if(els[0].index===0&&activeCount>0) openDrillPage('gmail-active',{title:'Gmail — משתמשים פעילים'});
         },
       },
     });
-    if(inactiveCount>0) pieCtx.canvas.style.cursor='pointer';
+    pieCtx.canvas.style.cursor='pointer';
   }
 
   // Bar chart — sent events per period only, clickable
