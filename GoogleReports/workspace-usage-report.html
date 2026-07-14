@@ -936,6 +936,7 @@ let chatData        = null; // {events:[{date,actor,event,roomId,roomName,extern
 let studioData      = null; // {events:[{date,actor,event,flowId,flowName,runType}]}
 let loginAuditData  = null; // {events:[{date,actor,event,isSuspicious,loginType,challengeMethod,challengeStatus,affectedEmail,ip}]}
 let allUsersData  = [];   // [{email,name,status,lastUsed:{gmail,drive,classroom}}]
+let userCreationMap = {}; // email → creation date (YYYY-MM-DD), from Admin log "User Creation" events
 let _anomaliesCache = []; // cached anomalies list for drill-down access
 let _alertDrillAnomaly = null; // the anomaly tile the user last clicked
 
@@ -1162,6 +1163,9 @@ function readCSV(file){
     } else if(isLoginAuditFormat(hdrs)){
       parseLoginAudit(lines,hdrs);
       if(!dataSource) dataSource='usage';
+    } else if(isUserCreationLogFormat(hdrs)){
+      parseUserCreationLog(lines,hdrs);
+      if(!dataSource) dataSource='usage';
     } else if(isGeminiFormat(hdrs)){
       parseGeminiCSV(lines,hdrs);
       if(!dataSource) dataSource='usage';
@@ -1245,11 +1249,11 @@ function parseGmailAuditLog(lines, hdrs){
     const event=(row[eventIdx]||'').trim();
     if(owner) owners.add(owner);
     if(!daily[date]) daily[date]={date,Sent:0,Received:0};
-    if(/^send$/i.test(event)){
+    if(/^sen[dt]\b/i.test(event)){
       daily[date].Sent++;
       if(owner) userSent[owner]=(userSent[owner]||0)+1;
       gmailAuditData.events.push({date,owner,event:'send'});
-    } else if(/^receive$/i.test(event)){
+    } else if(/^receiv/i.test(event)){
       daily[date].Received++;
       if(owner) userRecv[owner]=(userRecv[owner]||0)+1;
       gmailAuditData.events.push({date,owner,event:'receive'});
@@ -1834,6 +1838,35 @@ function parseLoginAudit(lines, hdrs){
     });
   });
   loginAuditData.events=dedupeEvents(loginAuditData.events,e=>e.date+'|'+e.actor+'|'+e.event+'|'+e.affectedEmail);
+}
+
+// Detect a generic Admin log export (Event / Actor / Resources / Added on) —
+// used specifically to pull "User Creation" events for account-age lookup.
+function isUserCreationLogFormat(hdrs){
+  return hdrs.some(h=>/^event$/i.test(h)) &&
+         hdrs.some(h=>/^actor$/i.test(h)) &&
+         hdrs.some(h=>/^added\s*on$/i.test(h));
+}
+
+function parseUserCreationLog(lines, hdrs){
+  const eventIdx     = hdrs.findIndex(h=>/^event$/i.test(h));
+  const descIdx      = hdrs.findIndex(h=>/^description$/i.test(h));
+  const resourcesIdx = hdrs.findIndex(h=>/^resources$/i.test(h));
+  const addedOnIdx   = hdrs.findIndex(h=>/^added\s*on$/i.test(h));
+  const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+
+  lines.slice(1).forEach(row=>{
+    const event=(row[eventIdx]||'').trim();
+    if(!/user\s*creation|create\s*user/i.test(event)) return;
+    const ds=normDate(row[addedOnIdx]);
+    if(!ds) return;
+    const targetSrc=(row[resourcesIdx]||'')+' '+(row[descIdx]||'');
+    const m=targetSrc.match(EMAIL_RE);
+    if(!m) return;
+    const email=m[0].toLowerCase();
+    // keep the earliest creation date seen for a user, in case of re-exports
+    if(!userCreationMap[email] || ds<userCreationMap[email]) userCreationMap[email]=ds;
+  });
 }
 
 function parsePerUser(lines,hdrs,fname){
@@ -3193,8 +3226,12 @@ function uaRenderUserList(filter){
   const list=window._uaAllDatasets.filter(d=>!q||d.label.toLowerCase().includes(q)||d.email.includes(q));
   wrap.innerHTML=list.map(d=>{
     const sel=window._uaVisible.includes(d.email);
+    const createdOn=userCreationMap[d.email];
+    const age=createdOn?accountAgeStr(createdOn):null;
+    const isNew=age && createdOn && (Date.now()-new Date(createdOn+'T00:00:00Z').getTime())<30*86400000;
     return`<div onclick="uaToggleUser('${d.email}')"
         oncontextmenu="uaTagCtxMenu(event,'${d.email}')"
+        title="${age?`נוצר ב-${fmtDate(createdOn)} · ותק ${age}`:''}"
         style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;
                background:${sel?d.color+'22':'transparent'};
                border:1px solid ${sel?d.color+'44':'transparent'};transition:.1s">
@@ -3206,6 +3243,8 @@ function uaRenderUserList(filter){
           <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;
             text-overflow:ellipsis">${d.email}</div>
         </div>
+        ${age?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;flex-shrink:0;
+          background:${isNew?'#34A85322':'var(--surface2)'};color:${isNew?'#34A853':'var(--muted)'}">${age}</span>`:''}
         ${sel?`<span style="font-size:10px;color:${d.color};opacity:.7">✓</span>`:''}
       </div>`;
   }).join('');
@@ -5220,6 +5259,22 @@ function normDate(s){
   return null;
 }
 
+// Human-readable account age from a YYYY-MM-DD creation date.
+function accountAgeStr(dateStr){
+  if(!dateStr) return null;
+  const created=new Date(dateStr+'T00:00:00Z');
+  const days=Math.floor((Date.now()-created.getTime())/86400000);
+  if(isNaN(days)||days<0) return null;
+  if(days<30) return`${days} ${days===1?'יום':'ימים'}`;
+  if(days<365){
+    const months=Math.floor(days/30);
+    return`${months} ${months===1?'חודש':'חודשים'}`;
+  }
+  const years=Math.floor(days/365);
+  const months=Math.floor((days%365)/30);
+  return months>0 ? `${years}ש ${months}ח` : `${years} ${years===1?'שנה':'שנים'}`;
+}
+
 // ── Aggregation ─────────────────────────────────────────────
 function aggregate(data,g){
   if(g==='daily')return data.map(d=>({...d}));
@@ -5904,7 +5959,7 @@ function uaResetAppFilters(){
 function reset(){
   rawData=[];userData=[];auditSets={};deviceDrillData={};securityCounts={};
   hasUserLevel=false;dataSource='';drillApp=null;fileCount=0;
-  snapshots=[];appsLocked=false;volumeData={};geminiData=null;geminiAuditData=null;meetData=null;driveAuditData=null;gmailAuditData=null;chatData=null;studioData=null;loginAuditData=null;allUsersData=[];
+  snapshots=[];appsLocked=false;volumeData={};geminiData=null;geminiAuditData=null;meetData=null;driveAuditData=null;gmailAuditData=null;chatData=null;studioData=null;loginAuditData=null;allUsersData=[];userCreationMap={};
   if(window._userActivityChart){window._userActivityChart.destroy();window._userActivityChart=null;}
   const _hide=(...ids)=>ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   const _show=(...ids)=>ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
@@ -6323,7 +6378,7 @@ async function loadAllS3Files(){
   // clear data stores so re-loading doesn't duplicate events
   rawData=[];auditSets={};volumeData={};geminiData=null;geminiAuditData=null;
   meetData=null;driveAuditData=null;gmailAuditData=null;chatData=null;
-  studioData=null;loginAuditData=null;allUsersData=[];
+  studioData=null;loginAuditData=null;allUsersData=[];userCreationMap={};
   appsLocked=false;fileCount=0;
   showLoader('טוען מ-S3...');
   window._s3LoadPending = keys.length;
