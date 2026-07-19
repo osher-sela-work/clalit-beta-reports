@@ -1210,6 +1210,30 @@ function parseCSVLines(text){
   return rows;
 }
 
+// Find a column index by trying English (regex) and Hebrew (exact string,
+// case/whitespace-insensitive) header variants — Google Admin console
+// exports column names in whatever locale the console UI was set to.
+// Strip bidi formatting marks (LRM/RLM/embedding-direction chars) Google
+// inserts around English/date fragments inside Hebrew-locale headers, and
+// normalize dash variants, so comparisons aren't broken by invisible chars.
+function _cleanHdr(s){
+  return (s||'')
+    .toLowerCase()
+    .replace(/[‎‏‪-‮⁦-⁩]/g,'')
+    .replace(/[‐-―]/g,'-')
+    .trim();
+}
+function findHdr(hdrs, enRe, heNames){
+  let idx = enRe ? hdrs.findIndex(h=>enRe.test(h)) : -1;
+  if(idx>=0) return idx;
+  if(heNames){
+    const heSet=(Array.isArray(heNames)?heNames:[heNames]).map(_cleanHdr);
+    idx = hdrs.findIndex(h=>{ const t=_cleanHdr(h); return heSet.some(name=>t===name||t.startsWith(name)); });
+  }
+  return idx;
+}
+function hasHdr(hdrs, enRe, heNames){ return findHdr(hdrs, enRe, heNames)>=0; }
+
 // Detect device audit CSV — has "device id" + "device type" columns
 function isDeviceFormat(hdrs){
   return hdrs.some(h=>/^device\s*id$/.test(h)) && hdrs.some(h=>/^device\s*type$/.test(h));
@@ -1217,19 +1241,19 @@ function isDeviceFormat(hdrs){
 
 // Detect Gmail audit log format (Message ID + From (Header address) + Owner + Event)
 function isGmailAuditLogFormat(hdrs){
-  return hdrs.some(h=>/^message\s*id$/i.test(h)) &&
-         hdrs.some(h=>/^from\s*\(header\s*address\)/i.test(h)) &&
-         hdrs.some(h=>/^owner$/i.test(h)) &&
-         hdrs.some(h=>/^event$/i.test(h));
+  return hasHdr(hdrs, /^message\s*id$/i, 'מזהה הודעה') &&
+         hasHdr(hdrs, /^from\s*\(header\s*address\)/i, 'מאת (כתובת כותרת)') &&
+         hasHdr(hdrs, /^owner$/i, 'בעלים') &&
+         hasHdr(hdrs, /^event$/i, 'אירוע');
 }
 
 function parseGmailAuditLog(lines, hdrs){
-  const dateIdx    = hdrs.findIndex(h=>/^date$/i.test(h));
-  const ownerIdx   = hdrs.findIndex(h=>/^owner$/i.test(h));
-  const eventIdx   = hdrs.findIndex(h=>/^event$/i.test(h));
-  const fromIdx    = hdrs.findIndex(h=>/^from\s*\(header\s*address\)/i.test(h));
-  const toIdx      = hdrs.findIndex(h=>/^to\s*\(envelope\)/i.test(h));
-  const subjectIdx = hdrs.findIndex(h=>/^subject$/i.test(h));
+  const dateIdx    = findHdr(hdrs, /^date$/i, 'תאריך');
+  const ownerIdx   = findHdr(hdrs, /^owner$/i, 'בעלים');
+  const eventIdx   = findHdr(hdrs, /^event$/i, 'אירוע');
+  const fromIdx    = findHdr(hdrs, /^from\s*\(header\s*address\)/i, 'מאת (כתובת כותרת)');
+  const toIdx      = findHdr(hdrs, /^to\s*\(envelope\)/i, 'אל (מעטפה)');
+  const subjectIdx = findHdr(hdrs, /^subject$/i, 'נושא');
 
   const daily = {};        // date → {date, Sent, Received}
   const userSent = {};
@@ -1249,11 +1273,18 @@ function parseGmailAuditLog(lines, hdrs){
     const event=(row[eventIdx]||'').trim();
     if(owner) owners.add(owner);
     if(!daily[date]) daily[date]={date,Sent:0,Received:0};
-    if(/^sen[dt]\b/i.test(event)){
+    // English console: "send"/"receive". Hebrew console: the actual delivery
+    // events are "נשלח על ידי שרת הדואר" (sent) and "התקבלה" (received). Match
+    // the passive verb roots נשלח / התקבל specifically so lookalike events don't
+    // count: "שליחה לארכיון" / "הודעה על שליחה שנכשלה" use the noun שליחה, and
+    // "קצב הקבלה מוגבל" uses הקבלה — none are a real send/receive.
+    const isSend = /^sen[dt]\b/i.test(event) || /נשלח/.test(event);
+    const isRecv = /^receiv/i.test(event) || /התקבל/.test(event);
+    if(isSend){
       daily[date].Sent++;
       if(owner) userSent[owner]=(userSent[owner]||0)+1;
       gmailAuditData.events.push({date,owner,event:'send'});
-    } else if(/^receiv/i.test(event)){
+    } else if(isRecv){
       daily[date].Received++;
       if(owner) userRecv[owner]=(userRecv[owner]||0)+1;
       gmailAuditData.events.push({date,owner,event:'receive'});
@@ -1305,6 +1336,13 @@ function isAuditFormat(hdrs){
   return hasActor&&(hasEvent||hasApp);
 }
 
+// Boolean cell value across console languages: TRUE/FALSE (English) or כן/לא
+// (Hebrew), plus common yes/1 variants. Google exports these flags localised.
+function _truthy(v){
+  const s=(v||'').toString().trim().toLowerCase();
+  return s==='true'||s==='yes'||s==='1'||s==='כן';
+}
+
 // Normalise device type string → DEVICE_APPS key
 function normDeviceType(raw){
   const s=(raw||'').toLowerCase().replace(/[\s_-]/g,'');
@@ -1352,11 +1390,12 @@ function parseDeviceAuditCSV(lines, hdrs){
     dateSets[ds][dtype].add(email);
 
     // Capture device details for drill-down (last row per user wins)
-    const isComp  = /true|yes|compromised/i.test(row[compStateIdx]||row[isCompIdx]||'');
-    const isNC    = /non.?compliant/i.test(row[complianceIdx]||'');
-    const osOut   = /true/i.test(row[outdatedOSIdx]||'');
-    const patchOut= /true/i.test(row[outdatedPatchIdx]||'');
-    const harmful = /true/i.test(row[harmfulIdx]||'');
+    const _compRaw= row[compStateIdx]||row[isCompIdx]||'';
+    const isComp  = _truthy(_compRaw) || /compromised|נפרץ|נפגע/i.test(_compRaw);
+    const isNC    = /non.?compliant|לא\s*תואם|אינו\s*תואם/i.test(row[complianceIdx]||'');
+    const osOut   = _truthy(row[outdatedOSIdx]);
+    const patchOut= _truthy(row[outdatedPatchIdx]);
+    const harmful = _truthy(row[harmfulIdx]);
 
     deviceDrillData[email] = {
       email,
@@ -1520,9 +1559,9 @@ function parseTimeSeries(lines,hdrs){
 }
 
 function isDriveAuditFormat(hdrs){
-  return hdrs.some(h=>/^document\s*id$/i.test(h)) &&
-         hdrs.some(h=>/^document\s*type$/i.test(h)) &&
-         hdrs.some(h=>/^visibility$/i.test(h));
+  return hasHdr(hdrs, /^document\s*id$/i, 'מזהה המסמך') &&
+         hasHdr(hdrs, /^document\s*type$/i, 'סוג המסמך') &&
+         hasHdr(hdrs, /^visibility$/i, 'חשיפה');
 }
 
 function dedupeEvents(events, keyFn){
@@ -1531,12 +1570,12 @@ function dedupeEvents(events, keyFn){
 }
 
 function parseDriveAudit(lines,hdrs){
-  const dateIdx   = hdrs.findIndex(h=>/^date$/i.test(h));
-  const actorIdx  = hdrs.findIndex(h=>/^actor$/i.test(h));
-  const titleIdx  = hdrs.findIndex(h=>/^title$/i.test(h));
-  const typeIdx   = hdrs.findIndex(h=>/^document\s*type$/i.test(h));
-  const eventIdx  = hdrs.findIndex(h=>/^event$/i.test(h));
-  const ownerIdx  = hdrs.findIndex(h=>/^owner$/i.test(h));
+  const dateIdx   = findHdr(hdrs, /^date$/i, 'תאריך');
+  const actorIdx  = findHdr(hdrs, /^actor$/i, 'שחקן');
+  const titleIdx  = findHdr(hdrs, /^title$/i, 'כותרת');
+  const typeIdx   = findHdr(hdrs, /^document\s*type$/i, 'סוג המסמך');
+  const eventIdx  = findHdr(hdrs, /^event$/i, 'אירוע');
+  const ownerIdx  = findHdr(hdrs, /^owner$/i, 'בעלים');
 
   if(!driveAuditData) driveAuditData={events:[]};
 
@@ -1560,31 +1599,31 @@ function parseDriveAudit(lines,hdrs){
 }
 
 function isMeetAuditFormat(hdrs){
-  return hdrs.some(h=>/meeting\s*code/i.test(h)) &&
-         hdrs.some(h=>/^event$/i.test(h)) &&
-         hdrs.some(h=>/conference\s*id/i.test(h));
+  return hasHdr(hdrs, /meeting\s*code/i, 'קוד הפגישה') &&
+         hasHdr(hdrs, /^event$/i, 'אירוע') &&
+         hasHdr(hdrs, /conference\s*id/i, 'מזהה שיחת הוועידה');
 }
 
 function isUserAccountsFormat(hdrs){
   // traditional user accounts export
-  if(hdrs.some(h=>/user\s*account\s*status/i.test(h)) &&
-     hdrs.some(h=>/2-step\s*verification/i.test(h))) return true;
+  if(hasHdr(hdrs, /user\s*account\s*status/i, 'סטטוס של חשבון משתמש') &&
+     hasHdr(hdrs, /2-step\s*verification/i, ['הרשמה לאימות דו-שלבי','אכיפת אימות דו-שלבי','הגנה באמצעות אימות דו-שלבי'])) return true;
   // per-user storage/activity report (no status column but has storage + last-used columns)
-  if(hdrs.some(h=>/gmail\s*storage\s*used/i.test(h)) &&
-     hdrs.some(h=>/drive\s*storage\s*used/i.test(h))) return true;
+  if(hasHdr(hdrs, /gmail\s*storage\s*used/i, 'שטח האחסון המנוצל ב-Gmail') &&
+     hasHdr(hdrs, /drive\s*storage\s*used/i, 'שטח האחסון שמנוצל ב-Drive')) return true;
   return false;
 }
 
 function parseMeetAudit(lines,hdrs){
-  const dateIdx    = hdrs.findIndex(h=>/^date$/i.test(h));
-  const actorIdx   = hdrs.findIndex(h=>/^actor$/i.test(h));
-  const nameIdx    = hdrs.findIndex(h=>/actor\s*name/i.test(h));
-  const codeIdx    = hdrs.findIndex(h=>/meeting\s*code/i.test(h));
-  const eventIdx   = hdrs.findIndex(h=>/^event$/i.test(h));
-  const extIdx     = hdrs.findIndex(h=>/participant\s*outside/i.test(h));
-  const clientIdx  = hdrs.findIndex(h=>/client\s*type/i.test(h));
-  const durIdx     = hdrs.findIndex(h=>/duration\s*\(seconds\)/i.test(h));
-  const orgIdx     = hdrs.findIndex(h=>/organizer\s*email/i.test(h));
+  const dateIdx    = findHdr(hdrs, /^date$/i, 'תאריך');
+  const actorIdx   = findHdr(hdrs, /^actor$/i, 'שחקן');
+  const nameIdx    = findHdr(hdrs, /actor\s*name/i, 'שם מבצע הפעולה');
+  const codeIdx    = findHdr(hdrs, /meeting\s*code/i, 'קוד הפגישה');
+  const eventIdx   = findHdr(hdrs, /^event$/i, 'אירוע');
+  const extIdx     = findHdr(hdrs, /participant\s*outside/i, 'משתתף/ת מחוץ לארגון');
+  const clientIdx  = findHdr(hdrs, /client\s*type/i, 'סוג לקוח');
+  const durIdx     = findHdr(hdrs, /duration\s*\(seconds\)/i, 'משך (שניות)');
+  const orgIdx     = findHdr(hdrs, /organizer\s*email/i, 'כתובת האימייל של המארגן');
 
   if(!meetData) meetData={events:[]};
 
@@ -1601,7 +1640,7 @@ function parseMeetAudit(lines,hdrs){
       actor:     (row[actorIdx]||'').replace(/\*/g,''),
       actorName: row[nameIdx]||'',
       meetingCode: row[codeIdx]||'',
-      external:  (row[extIdx]||'').toUpperCase()==='TRUE',
+      external:  _truthy(row[extIdx]),
       clientType: row[clientIdx]||'Unknown',
       duration:  parseInt(row[durIdx])||0,
       organizer: row[orgIdx]||'',
@@ -1610,13 +1649,26 @@ function parseMeetAudit(lines,hdrs){
   meetData.events=dedupeEvents(meetData.events,e=>e.date+'|'+e.actor+'|'+e.meetingCode);
 }
 
+// Normalise account status to a canonical value so the many downstream
+// `status.includes('active')` checks work regardless of console language.
+// English exports say "Active"/"Suspended"/"Archived"; Hebrew exports say
+// "פעיל"/"מושהה"/"בארכיון". Active users become 'active'; anything else keeps
+// its raw (lowercased) value so it won't match 'active'.
+function _normStatus(raw){
+  const s=(raw||'').toLowerCase().trim();
+  if(!s) return 'active';
+  if(/לא\s*פעיל/.test(s)) return s;                        // "not active" → leave as non-active
+  if(s.includes('active') || /פעיל/.test(s)) return 'active';
+  return s;                                                  // suspended / archived / מושהה / etc.
+}
+
 function parseUserAccounts(lines,hdrs){
   const emailIdx    = 0; // first column is always User email
-  const statusIdx   = hdrs.findIndex(h=>/user\s*account\s*status/i.test(h));
-  const nameIdx     = hdrs.findIndex(h=>/admin-defined\s*name/i.test(h));
-  const gmailIdx    = hdrs.findIndex(h=>/gmail\s*\(web\).*last\s*used/i.test(h));
-  const driveIdx    = hdrs.findIndex(h=>/drive.*last\s*active/i.test(h));
-  const classIdx    = hdrs.findIndex(h=>/classroom.*last\s*used/i.test(h));
+  const statusIdx   = findHdr(hdrs, /user\s*account\s*status/i, 'סטטוס של חשבון משתמש');
+  const nameIdx     = findHdr(hdrs, /admin-defined\s*name/i, 'שם בהגדרת מנהל המערכת');
+  const gmailIdx    = findHdr(hdrs, /gmail\s*\(web\).*last\s*used/i, 'Gmail (אינטרנט) - מועד השימוש האחרון');
+  const driveIdx    = findHdr(hdrs, /drive.*last\s*active/i, 'Drive - זמן הפעילות האחרונה');
+  const classIdx    = findHdr(hdrs, /classroom.*last\s*used/i, 'Classroom - מועד השימוש האחרון');
 
   allUsersData=[];
   lines.slice(1).forEach(row=>{
@@ -1625,7 +1677,7 @@ function parseUserAccounts(lines,hdrs){
     allUsersData.push({
       email,
       name:    row[nameIdx]||'',
-      status:  (statusIdx>=0 ? row[statusIdx] : 'active')||'active',
+      status:  _normStatus(statusIdx>=0 ? row[statusIdx] : 'active'),
       lastUsed:{
         gmail:     row[gmailIdx]||'',
         drive:     row[driveIdx]||'',
@@ -1641,20 +1693,20 @@ function isGeminiFormat(hdrs){
 }
 
 function isGeminiAuditFormat(hdrs, lines){
-  if(!hdrs.some(h=>/^feature\s*source$/i.test(h))) return false;
-  if(!hdrs.some(h=>/^event\s*category$/i.test(h))) return false;
-  if(!hdrs.some(h=>/^app\s*name$/i.test(h)))       return false;
-  if(!hdrs.some(h=>/^actor$/i.test(h)))             return false;
+  if(!hasHdr(hdrs, /^feature\s*source$/i, 'מקור התכונה')) return false;
+  if(!hasHdr(hdrs, /^event\s*category$/i, 'קטגוריית האירוע')) return false;
+  if(!hasHdr(hdrs, /^app\s*name$/i, 'שם אפליקציה'))       return false;
+  if(!hasHdr(hdrs, /^actor$/i, 'שחקן'))             return false;
   // verify at least one data row has "gemini" in the App name column
-  const appIdx=hdrs.findIndex(h=>/^app\s*name$/i.test(h));
+  const appIdx=findHdr(hdrs, /^app\s*name$/i, 'שם אפליקציה');
   return lines.slice(1,6).some(r=>r[appIdx]&&/gemini/i.test(r[appIdx]));
 }
 
 function parseGeminiAudit(lines, hdrs){
-  const dateIdx    = hdrs.findIndex(h=>/^date$/i.test(h));
-  const actorIdx   = hdrs.findIndex(h=>/^actor$/i.test(h));
-  const featureIdx = hdrs.findIndex(h=>/^feature\s*source$/i.test(h));
-  const actionIdx  = hdrs.findIndex(h=>/^action$/i.test(h));
+  const dateIdx    = findHdr(hdrs, /^date$/i, 'תאריך');
+  const actorIdx   = findHdr(hdrs, /^actor$/i, 'שחקן');
+  const featureIdx = findHdr(hdrs, /^feature\s*source$/i, 'מקור התכונה');
+  const actionIdx  = findHdr(hdrs, /^action$/i, 'פעולה');
   if(dateIdx<0||actorIdx<0) return;
   if(!geminiAuditData) geminiAuditData={events:[]};
   lines.slice(1).forEach(row=>{
@@ -1693,19 +1745,19 @@ function parseGeminiCSV(lines,hdrs){
 }
 
 function isChatAuditFormat(hdrs){
-  return hdrs.some(h=>/^room\s*id$/i.test(h)) ||
-    (hdrs.some(h=>/^room\s*name$/i.test(h)) && hdrs.some(h=>/^actor$/i.test(h)));
+  return hasHdr(hdrs, /^room\s*id$/i, 'מזהה החדר') ||
+    (hasHdr(hdrs, /^room\s*name$/i, 'שם החדר') && hasHdr(hdrs, /^actor$/i, 'שחקן'));
 }
 
 function parseChatAudit(lines,hdrs){
-  const dateIdx  = hdrs.findIndex(h=>/^date$/i.test(h));
-  const actorIdx = hdrs.findIndex(h=>/^actor$/i.test(h));
-  const eventIdx = hdrs.findIndex(h=>/^event$/i.test(h));
-  const descIdx  = hdrs.findIndex(h=>/^description$/i.test(h));
-  const roomIdIdx= hdrs.findIndex(h=>/^room\s*id$/i.test(h));
-  const roomNmIdx= hdrs.findIndex(h=>/^room\s*name$/i.test(h));
-  const extIdx   = hdrs.findIndex(h=>/^external\s*room$/i.test(h));
-  const convIdx  = hdrs.findIndex(h=>/^conversation\s*type$/i.test(h));
+  const dateIdx  = findHdr(hdrs, /^date$/i, 'תאריך');
+  const actorIdx = findHdr(hdrs, /^actor$/i, 'שחקן');
+  const eventIdx = findHdr(hdrs, /^event$/i, 'אירוע');
+  const descIdx  = findHdr(hdrs, /^description$/i, 'תיאור');
+  const roomIdIdx= findHdr(hdrs, /^room\s*id$/i, 'מזהה החדר');
+  const roomNmIdx= findHdr(hdrs, /^room\s*name$/i, 'שם החדר');
+  const extIdx   = findHdr(hdrs, /^external\s*room$/i, 'חדר חיצוני');
+  const convIdx  = findHdr(hdrs, /^conversation\s*type$/i, 'סוג השיחה');
   if(dateIdx<0||actorIdx<0) return;
   if(!chatData) chatData={events:[]};
   lines.slice(1).forEach(row=>{
@@ -1721,7 +1773,7 @@ function parseChatAudit(lines,hdrs){
       description:row[descIdx]||'',
       roomId:row[roomIdIdx]||'',
       roomName:row[roomNmIdx]||'',
-      external:(row[extIdx]||'').toLowerCase()==='true',
+      external:_truthy(row[extIdx]),
       conversationType:row[convIdx]||'',
     });
   });
@@ -1729,19 +1781,19 @@ function parseChatAudit(lines,hdrs){
 }
 
 function isStudioAuditFormat(hdrs){
-  return hdrs.some(h=>/^flow\s*id$/i.test(h)) ||
-    hdrs.some(h=>/^flow\s*name$/i.test(h));
+  return hasHdr(hdrs, /^flow\s*id$/i, 'מזהה התהליך') ||
+    hasHdr(hdrs, /^flow\s*name$/i, 'שם התהליך');
 }
 
 function parseStudioAudit(lines,hdrs){
-  const dateIdx  = hdrs.findIndex(h=>/^date$/i.test(h));
-  const actorIdx = hdrs.findIndex(h=>/^actor$/i.test(h));
-  const descIdx  = hdrs.findIndex(h=>/^description$/i.test(h));
-  const evtIdx   = hdrs.findIndex(h=>/^no\s*translations/i.test(h));
-  const flowIdIdx= hdrs.findIndex(h=>/^flow\s*id$/i.test(h));
-  const flowNmIdx= hdrs.findIndex(h=>/^flow\s*name$/i.test(h));
-  const runTypeIdx=hdrs.findIndex(h=>/^run\s*type$/i.test(h));
-  const runLenIdx= hdrs.findIndex(h=>/^run\s*length$/i.test(h));
+  const dateIdx  = findHdr(hdrs, /^date$/i, 'תאריך');
+  const actorIdx = findHdr(hdrs, /^actor$/i, 'שחקן');
+  const descIdx  = findHdr(hdrs, /^description$/i, 'תיאור');
+  const evtIdx   = findHdr(hdrs, /^no\s*translations/i, 'לא נמצאו תרגומים');
+  const flowIdIdx= findHdr(hdrs, /^flow\s*id$/i, 'מזהה התהליך');
+  const flowNmIdx= findHdr(hdrs, /^flow\s*name$/i, 'שם התהליך');
+  const runTypeIdx=findHdr(hdrs, /^run\s*type$/i, 'סוג ההרצה');
+  const runLenIdx= findHdr(hdrs, /^run\s*length$/i, 'אורך ההרצה');
   if(dateIdx<0||actorIdx<0) return;
   if(!studioData) studioData={events:[]};
   lines.slice(1).forEach(row=>{
@@ -1765,8 +1817,8 @@ function parseStudioAudit(lines,hdrs){
 }
 
 function isLoginAuditFormat(hdrs){
-  return hdrs.some(h=>/^is.?suspicious$/i.test(h)) ||
-    (hdrs.some(h=>/^login.?type$/i.test(h)) && hdrs.some(h=>/^event/i.test(h)));
+  return hasHdr(hdrs, /^is.?suspicious$/i, 'חשוד/ה') ||
+    (hasHdr(hdrs, /^login.?type$/i, 'סוג התחברות') && hasHdr(hdrs, /^event/i, ['אירוע','סטטוס של אירוע']));
 }
 
 // Maps Google Admin Console display names → internal event keys used by detectAnomalies
@@ -1788,20 +1840,37 @@ const LOGIN_EVENT_MAP = {
   'risky sensitive action allowed': 'risky_sensitive_action_allowed',
 };
 
+// Hebrew login-event display names → internal keys, matched by keyword so
+// spacing / phrasing variants still resolve. Checked before the underscore
+// fallback. Order matters: test "failed" before "successful", etc.
+function _normalizeLoginEventHe(h){
+  if(/נכשל/.test(h))                                     return 'login_failure';      // "ההתחברות נכשלה"
+  if(/מוצלח|אימות\s*התחברות/.test(h))                    return 'login_success';      // "התחברות מוצלחת / אימות התחברות"
+  if(/התנתק/.test(h))                                    return 'logout';             // "התנתקות"
+  if(/חשוד/.test(h))                                     return 'suspicious_login';   // "התחברות חשודה"
+  if(/(דו[-\s]*שלב)/.test(h) && /(כיבוי|בוטל|הושבת|ביטול|כבוי)/.test(h)) return '2sv_disable';
+  if(/(העברת\s*(דוא|אימייל|מייל))/.test(h) && /(דומיין|מחוץ)/.test(h))  return 'email_forwarding_out_of_domain';
+  if(/פעולה\s*(רגישה|מסוכנת)/.test(h))                   return 'risky_sensitive_action_allowed'; // "פעולה רגישה הותרה"
+  if(/נחטף|נפרץ/.test(h))                                return 'account_disabled_hijacked';
+  if(/(דלף|דליפ).*סיסמ|סיסמ.*(דלף|דליפ)/.test(h))        return 'account_disabled_password_leak';
+  if(/תקיפה\s*ממשלתית/.test(h))                          return 'gov_attack_warning';
+  return '';
+}
+
 function _normalizeLoginEvent(raw){
   const key=(raw||'').toLowerCase().trim();
-  return LOGIN_EVENT_MAP[key] || key.replace(/\s+/g,'_');
+  return LOGIN_EVENT_MAP[key] || _normalizeLoginEventHe(key) || key.replace(/\s+/g,'_');
 }
 
 function parseLoginAudit(lines, hdrs){
-  const dateIdx   = hdrs.findIndex(h=>/^date$/i.test(h)||/^time$/i.test(h));
-  const actorIdx  = hdrs.findIndex(h=>/^user$/i.test(h)||/^actor$/i.test(h)||(/^email$/i.test(h)&&!hdrs.some(h2=>/^actor$/i.test(h2))));
-  const descIdx   = hdrs.findIndex(h=>/^description$/i.test(h));
-  const eventIdx  = hdrs.findIndex(h=>/^event\s*name$/i.test(h)||/^event\s*status$/i.test(h)||/^event$/i.test(h));
-  const suspIdx   = hdrs.findIndex(h=>/^is.?suspicious$/i.test(h));
-  const loginTIdx = hdrs.findIndex(h=>/^login.?type$/i.test(h));
-  const affectIdx = hdrs.findIndex(h=>/^affected.?(email|user)/i.test(h));
-  const sf2Idx    = hdrs.findIndex(h=>/^is.?second.?factor$/i.test(h));
+  const dateIdx   = findHdr(hdrs, /^date$|^time$/i, 'תאריך');
+  const actorIdx  = hdrs.findIndex(h=>/^user$/i.test(h)||/^actor$/i.test(h)||h.trim()==='משתמש'||(/^email$/i.test(h)&&!hdrs.some(h2=>/^actor$/i.test(h2))));
+  const descIdx   = findHdr(hdrs, /^description$/i, 'תיאור');
+  const eventIdx  = findHdr(hdrs, /^event\s*name$|^event\s*status$|^event$/i, ['אירוע','סטטוס של אירוע']);
+  const suspIdx   = findHdr(hdrs, /^is.?suspicious$/i, 'חשוד/ה');
+  const loginTIdx = findHdr(hdrs, /^login.?type$/i, 'סוג התחברות');
+  const affectIdx = findHdr(hdrs, /^affected.?(email|user)/i, ['משתמש מושפע','כתובת האימייל של המשתמש האורח']);
+  const sf2Idx    = findHdr(hdrs, /^is.?second.?factor$/i, 'הוא גורם שני');
   if(dateIdx<0) return;
 
   // Build name→email lookup from allUsersData for description-based actor extraction
@@ -1831,10 +1900,10 @@ function parseLoginAudit(lines, hdrs){
     loginAuditData.events.push({
       date:ds, actor,
       event: _normalizeLoginEvent(rawEvent),
-      isSuspicious:(row[suspIdx]||'').toLowerCase()==='true',
+      isSuspicious:_truthy(row[suspIdx]),
       loginType:loginTIdx>=0?(row[loginTIdx]||''):'',
       affectedEmail:affectIdx>=0?(row[affectIdx]||'').toLowerCase().trim():'',
-      isSecondFactor:sf2Idx>=0?(row[sf2Idx]||'').toLowerCase()==='true':false,
+      isSecondFactor:sf2Idx>=0?_truthy(row[sf2Idx]):false,
     });
   });
   loginAuditData.events=dedupeEvents(loginAuditData.events,e=>e.date+'|'+e.actor+'|'+e.event+'|'+e.affectedEmail);
@@ -2796,10 +2865,13 @@ const SD_SLIDE_TYPES = new Set(['presentation','presentations']);
 const SD_SHEET_TYPES = new Set(['spreadsheet','spreadsheets']);
 const SD_VIDEO_TYPES = new Set(['video','videos','mp4','mov','avi','mkv','webm']);
 function _sdNorm(e){ return (e.docType||'').toLowerCase().replace(/^google\s*/,''); }
-function _isDocsEvent(e)  { return SD_DOC_TYPES.has(_sdNorm(e));   }
-function _isSlidesEvent(e){ return SD_SLIDE_TYPES.has(_sdNorm(e)); }
-function _isSheetEvent(e) { return SD_SHEET_TYPES.has(_sdNorm(e)); }
-function _isVideoEvent(e) { return SD_VIDEO_TYPES.has(_sdNorm(e)); }
+// English exports use the Set values above. Hebrew exports label the "סוג המסמך"
+// column in Hebrew (מסמך / מצגת / גיליון / סרטון), often with extra words like
+// "מסמך Google" or "גיליון אלקטרוני" — so also match those roots as substrings.
+function _isDocsEvent(e)  { const t=_sdNorm(e); return SD_DOC_TYPES.has(t)   || /מסמך/.test(t); }
+function _isSlidesEvent(e){ const t=_sdNorm(e); return SD_SLIDE_TYPES.has(t) || /מצגת/.test(t); }
+function _isSheetEvent(e) { const t=_sdNorm(e); return SD_SHEET_TYPES.has(t) || /גיליון|גליון/.test(t); }
+function _isVideoEvent(e) { const t=_sdNorm(e); return SD_VIDEO_TYPES.has(t) || /סרטון|וידאו|וידיאו/.test(t); }
 
 function _buildUserList(events, color, actorFn){
   if(!actorFn) actorFn=e=>e.actor;
@@ -3918,8 +3990,10 @@ function dpRender(){
     cols=['משתמש','אימייל','נשלח','התקבל','סה"כ'];
     let users;
     if(gmailAuditData){
-      // Filter events by drill date range
-      const ev=(gmailAuditData.events||[]).filter(e=>e.event!=='receive'&&e.date>=start&&e.date<=end);
+      // Filter events by drill date range. Keep BOTH send and receive here —
+      // this table has a dedicated התקבל (Received) column, so unlike the card
+      // and trend chart we must not drop receive events.
+      const ev=(gmailAuditData.events||[]).filter(e=>e.date>=start&&e.date<=end);
       const userMap={};
       ev.forEach(e=>{
         if(!e.owner) return;
