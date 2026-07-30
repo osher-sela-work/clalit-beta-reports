@@ -593,7 +593,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     <div class="spacer"></div>
     <span id="file-info"></span>
     <button id="btn-training" class="btn btn-ghost" onclick="toggleTraining()" disabled
-      title="userLIST.txt לא נטען" style="opacity:.5">👥 צוות הדרכה</button>
+      title="רשימת צוות ההדרכה" style="opacity:.5">👥 צוות הדרכה</button>
     <button class="btn btn-ghost" onclick="clearFilters()" title="נקה מסננים">✕ נקה מסננים</button>
     <button class="btn btn-ghost" onclick="reset()" title="הסר את כל הנתונים" style="opacity:.6">⊗ נקה נתונים</button>
   </div>
@@ -6044,16 +6044,16 @@ function fmtLabel(ds){
 function ev(e,cls){e.preventDefault();document.getElementById('upload-zone').className=''+cls?`upload-zone ${cls}`:'';}
 function drop(e){e.preventDefault();document.getElementById('upload-zone').className='';handleFiles(e.dataTransfer.files);}
 
-// ── Training-team exclusion (userLIST.txt) ───────────────────────
-// Emails in userLIST.txt (one per line, # = comment) are removed from ALL views
-// when the "צוות הדרכה" button is toggled on. Paste emails into the array below
-// to hard-embed them for when the report is opened as a local file (fetch is
-// blocked under file://); they are merged with userLIST.txt.
+// ── Training-team exclusion ──────────────────────────────────────
+// Emails in TRAINING_LIST_EMBEDDED are removed from ALL views when the
+// "צוות הדרכה" button is toggled on. The list is hard-embedded here so the
+// report works offline / as a local file (file://) with no server needed.
+// To add/remove members, edit the array below (case-insensitive).
 const TRAINING_LIST_EMBEDDED = ['osheri@sela-delivery.com',
 'adamkar@clalit.org.il',
-'AlonMi@clalit.org.il',
+'alonmi@clalit.org.il',
 'ilankar@clalit.org.il',
-'AlinaZi@clalit.org.il',
+'alinazi@clalit.org.il',
 'barav1@clalit.org.il',
 'danamaik@clalit.org.il',
 'hagarmal1@clalit.org.il',
@@ -6072,23 +6072,17 @@ const TRAINING_LIST_EMBEDDED = ['osheri@sela-delivery.com',
 'noamtua@clalit.org.il',
 'stavsh1@clalit.org.il',
 'adinas22@clalit.org.il',
-'BarinaE@clalit.org.il',
-'Afifash@clalit.org.il',
+'barinae@clalit.org.il',
+'afifash@clalit.org.il',
 'shamskai@clalit.org.il',
 'tomerwol1@clalit.org.il'];
 window._trainingSet    = new Set();  // lowercased emails to exclude
 window._trainingActive = false;
 window._trainingBackup = null;       // snapshot of the full (unfiltered) data
 
-async function _loadTrainingList(){
-  const paths=['userLIST.txt','./userLIST.txt','GoogleReports/userLIST.txt','/GoogleReports/userLIST.txt'];
-  let txt='';
-  for(const p of paths){
-    try{ const r=await fetch(p,{cache:'no-store'}); if(r.ok){ txt=await r.text(); break; } }catch(_){}
-  }
-  const set=new Set(TRAINING_LIST_EMBEDDED.map(s=>String(s).toLowerCase().trim()).filter(Boolean));
-  txt.split(/\r?\n/).map(l=>l.trim().toLowerCase()).filter(l=>l&&!l.startsWith('#')).forEach(l=>set.add(l));
-  _trainingSet=set;
+function _loadTrainingList(){
+  // Embedded list only — no external file fetch (works offline / file://)
+  _trainingSet=new Set(TRAINING_LIST_EMBEDDED.map(s=>String(s).toLowerCase().trim()).filter(Boolean));
   _syncTrainingBtn();
 }
 
@@ -6099,7 +6093,7 @@ function _syncTrainingBtn(){
   b.disabled=n===0;
   if(n===0){
     b.style.opacity='.5'; b.style.background=''; b.style.color=''; b.style.borderColor='';
-    b.title='userLIST.txt ריק או לא נטען'; b.innerHTML='👥 צוות הדרכה'; return;
+    b.title='רשימת צוות ההדרכה ריקה'; b.innerHTML='👥 צוות הדרכה'; return;
   }
   b.style.opacity='1';
   if(_trainingActive){
