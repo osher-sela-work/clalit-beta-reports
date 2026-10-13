@@ -6038,22 +6038,25 @@ function renderInactiveUsers(){
     }catch{return`<span class="badge-old">${val}</span>`;}
   }
 
-  const meetActors=new Set(
-    (meetData?.events||[]).filter(e=>e.date>=start&&e.date<=end).map(e=>e.actor.toLowerCase())
-  );
+  // Columns taken from the activity logs: one per loaded log, active = seen in the selected period
+  const logCols=[
+    {label:'Meet',   data:meetData,        none:'לא הצטרף'},
+    {label:'Gemini', data:geminiAuditData, none:'לא השתמש'},
+    {label:'Chat',   data:chatData,        none:'לא השתמש'},
+    {label:'Studio', data:studioData,      none:'לא השתמש'},
+  ].filter(c=>c.data).map(c=>({...c,
+    actors:new Set(winFilter(c.data.events||[],e=>e.date).map(e=>(e.actor||'').toLowerCase())),
+  }));
   const activeUsers=allUsersData.filter(u=>u.status.toLowerCase().includes('active'));
-  const rows=activeUsers.map(u=>{
-    const inMeet=meetActors.has(u.email.toLowerCase());
-    return{
-      u,
-      gmailBadge:  lastUsedBadge(u.lastUsed?.gmail||''),
-      driveBadge:  lastUsedBadge(u.lastUsed?.drive||''),
-      meetBadge:   meetData
-        ?(inMeet?'<span class="badge-ok">פעיל</span>':'<span class="badge-never">לא הצטרף</span>')
-        :'<span style="color:var(--muted);font-size:10px">—</span>',
-      classBadge:  lastUsedBadge(u.lastUsed?.classroom||''),
-    };
-  });
+  const rows=activeUsers.map(u=>({
+    u,
+    gmailBadge: lastUsedBadge(u.lastUsed?.gmail||''),
+    driveBadge: lastUsedBadge(u.lastUsed?.drive||''),
+    logBadges:  logCols.map(c=>c.actors.has(u.email.toLowerCase())
+      ?'<span class="badge-ok">פעיל</span>'
+      :`<span class="badge-never">${c.none}</span>`),
+    classBadge: lastUsedBadge(u.lastUsed?.classroom||''),
+  }));
 
   if(!rows.length){panel.style.display='none';return;}
   panel.style.display='block';
@@ -6063,16 +6066,16 @@ function renderInactiveUsers(){
       <table class="inactive-table">
         <thead><tr>
           <th>משתמש</th><th>Gmail</th><th>Drive</th>
-          ${meetData?'<th>Meet</th>':''}
+          ${logCols.map(c=>`<th>${c.label}</th>`).join('')}
           <th>Classroom</th>
         </tr></thead>
-        <tbody>${rows.map(({u,gmailBadge,driveBadge,meetBadge,classBadge})=>`
+        <tbody>${rows.map(({u,gmailBadge,driveBadge,logBadges,classBadge})=>`
           <tr>
             <td><div style="font-weight:500">${u.name||u.email.split('@')[0]}</div>
                 <div style="font-size:10px;color:var(--muted)">${u.email}</div></td>
             <td>${gmailBadge}</td>
             <td>${driveBadge}</td>
-            ${meetData?`<td>${meetBadge}</td>`:''}
+            ${logBadges.map(b=>`<td>${b}</td>`).join('')}
             <td>${classBadge}</td>
           </tr>`).join('')}
         </tbody>
