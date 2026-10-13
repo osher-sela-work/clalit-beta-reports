@@ -2332,7 +2332,7 @@ function detectAnomalies(){
     if(suspSuccList.length){
       anomalies.push({
         level:'critical', icon:'⚠️',
-        title:`${suspSuccList.length} כניסה${suspSuccList.length>1?'ות':''} מוצלחות שסומנו חשודות`,
+        title:suspSuccList.length>1?`${suspSuccList.length} כניסות מוצלחות שסומנו חשודות`:'כניסה מוצלחת אחת שסומנה חשודה',
         detail:'login_success עם is_suspicious=true – כניסה הצליחה אך Google חשדה בה',
         users: suspSuccList.map(([em,cnt])=>({em,count:cnt,label:`${cnt} אירועים`})),
         src:'suspicious-success',
