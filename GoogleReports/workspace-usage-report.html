@@ -1121,6 +1121,51 @@ function handleFiles(files){
   showLoader(files.length===1 ? files[0].name : `${files.length} קבצים`);
   Array.from(files).forEach(f=>readCSV(f));
 }
+// ── Filename-vs-content type mismatch warning ────────────────────
+// Google Admin export filenames indicate the intended log (e.g. "Drive log
+// events.csv"), but we detect the log type from its COLUMNS. If a file's name
+// says one thing while its content is another — e.g. a Chat export saved under
+// a "drive" name — the intended data silently goes missing. Surface a banner.
+const _TYPE_LABELS={drive:'Drive',chat:'Chat',meet:'Meet',gmail:'Gmail',gemini:'Gemini',studio:'Studio',login:'Users / Login',device:'Devices'};
+function _fnameGroup(name){
+  const n=(name||'').toLowerCase();
+  if(/drive|docs|slides|sheets/.test(n))        return 'drive';
+  if(/chat|spaces/.test(n))                     return 'chat';
+  if(/meet/.test(n))                            return 'meet';
+  if(/gmail|e-?mail|\bmail\b/.test(n))          return 'gmail';
+  if(/gemini/.test(n))                          return 'gemini';
+  if(/studio|flow/.test(n))                     return 'studio';
+  if(/login|account|\bauth\b|\buser\b/.test(n)) return 'login';
+  if(/device|mobile/.test(n))                   return 'device';
+  return null;
+}
+function _flagTypeMismatch(fileName,detected){
+  const want=_fnameGroup(fileName);
+  if(!want||!detected||want===detected) return;
+  if(!_TYPE_LABELS[detected]) return;           // only warn between recognized audit logs
+  const key=fileName+'|'+detected;
+  let box=document.getElementById('type-mismatch-warn');
+  if(box&&box._seen&&box._seen.has(key)) return;
+  if(!box){
+    box=document.createElement('div');
+    box.id='type-mismatch-warn';
+    box._seen=new Set();
+    box.style.cssText='position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#2a2416;border:1px solid #F9AB0080;color:#F9AB00;font-size:12px;line-height:1.5;padding:10px 40px 10px 16px;border-radius:8px;z-index:100000;max-width:560px;text-align:right;direction:rtl;box-shadow:0 4px 18px #0008';
+    const x=document.createElement('span');
+    x.textContent='✕'; x.title='סגירה';
+    x.style.cssText='position:absolute;left:12px;top:8px;cursor:pointer;opacity:.7';
+    x.onclick=()=>box.remove();
+    box.appendChild(x);
+    box._list=document.createElement('div'); box.appendChild(box._list);
+    document.body.appendChild(box);
+  }
+  box._seen.add(key);
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const line=document.createElement('div');
+  line.style.marginTop='2px';
+  line.innerHTML=`⚠ הקובץ <b>${esc(fileName)}</b> נראה כמו יומן <b>${_TYPE_LABELS[want]||want}</b> אך תוכנו זוהה כ-<b>${_TYPE_LABELS[detected]}</b> — ייתכן שיוצא מהדוח הלא נכון והנתונים המקוריים חסרים.`;
+  box._list.appendChild(line);
+}
 function readCSV(file){
   return new Promise(resolve=>{
   const r=new FileReader();
@@ -1137,42 +1182,43 @@ function readCSV(file){
     const lines=parseCSVLines(raw);
     if(lines.length<2)return;
     const hdrs=lines[0].map(h=>h.toLowerCase().trim().replace(/\r/g,''));
+    let _det=null;
     if(isDeviceFormat(hdrs)){
       parseDeviceAuditCSV(lines,hdrs);
-      dataSource='device';
+      dataSource='device'; _det='device';
     } else if(isDriveAuditFormat(hdrs)){
       parseDriveAudit(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='drive';
     } else if(isMeetAuditFormat(hdrs)){
       parseMeetAudit(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='meet';
     } else if(isUserAccountsFormat(hdrs)){
       parseUserAccounts(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='accounts';
     } else if(isGmailAuditLogFormat(hdrs)){
       parseGmailAuditLog(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='gmail';
     } else if(isAuditFormat(hdrs)){
       parseAuditCSV(lines,hdrs);
       dataSource='audit';
     } else if(isGeminiAuditFormat(hdrs,lines)){
       parseGeminiAudit(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='gemini';
     } else if(isChatAuditFormat(hdrs)){
       parseChatAudit(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='chat';
     } else if(isStudioAuditFormat(hdrs)){
       parseStudioAudit(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='studio';
     } else if(isLoginAuditFormat(hdrs)){
       parseLoginAudit(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='login';
     } else if(isUserCreationLogFormat(hdrs)){
       parseUserCreationLog(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='accounts';
     } else if(isGeminiFormat(hdrs)){
       parseGeminiCSV(lines,hdrs);
-      if(!dataSource) dataSource='usage';
+      if(!dataSource) dataSource='usage'; _det='gemini';
     } else {
       const hasDate=hdrs.some(h=>/^(date|week|day|period)$/.test(h));
       if(hasDate) parseTimeSeries(lines,hdrs);
@@ -1180,6 +1226,7 @@ function readCSV(file){
       dataSource='usage';
     }
     fileCount++;
+    _flagTypeMismatch(file.name,_det);
     showReport();
     resolve();
   };
@@ -1703,9 +1750,9 @@ function isGeminiAuditFormat(hdrs, lines){
   if(!hasHdr(hdrs, /^event\s*category$/i, 'קטגוריית האירוע')) return false;
   if(!hasHdr(hdrs, /^app\s*name$/i, 'שם אפליקציה'))       return false;
   if(!hasHdr(hdrs, /^actor$/i, 'שחקן'))             return false;
-  // verify at least one data row has "gemini" in the App name column
-  const appIdx=findHdr(hdrs, /^app\s*name$/i, 'שם אפליקציה');
-  return lines.slice(1,6).some(r=>r[appIdx]&&/gemini/i.test(r[appIdx]));
+  // These four columns are specific to the Gemini log. The App name value is not
+  // checked: it is whichever app used Gen AI (Gemini App, Slides, Workspace Studio…).
+  return true;
 }
 
 function parseGeminiAudit(lines, hdrs){
@@ -1872,7 +1919,11 @@ function parseLoginAudit(lines, hdrs){
   const dateIdx   = findHdr(hdrs, /^date$|^time$/i, 'תאריך');
   const actorIdx  = hdrs.findIndex(h=>/^user$/i.test(h)||/^actor$/i.test(h)||h.trim()==='משתמש'||(/^email$/i.test(h)&&!hdrs.some(h2=>/^actor$/i.test(h2))));
   const descIdx   = findHdr(hdrs, /^description$/i, 'תיאור');
-  const eventIdx  = findHdr(hdrs, /^event\s*name$|^event\s*status$|^event$/i, ['אירוע','סטטוס של אירוע']);
+  // Prefer the exact "Event" column: newer exports also carry an "Event status"
+  // column (a JSON blob, mostly empty) that sits before it.
+  let eventIdx    = hdrs.findIndex(h=>{ const t=_cleanHdr(h); return t==='event'||t==='אירוע'; });
+  if(eventIdx<0) eventIdx = findHdr(hdrs, /^event\s*name$/i);
+  if(eventIdx<0) eventIdx = findHdr(hdrs, /^event\s*status$/i, ['אירוע','סטטוס של אירוע']);
   const suspIdx   = findHdr(hdrs, /^is.?suspicious$/i, 'חשוד/ה');
   const loginTIdx = findHdr(hdrs, /^login.?type$/i, 'סוג התחברות');
   const affectIdx = findHdr(hdrs, /^affected.?(email|user)/i, ['משתמש מושפע','כתובת האימייל של המשתמש האורח']);
@@ -6492,6 +6543,30 @@ function getStorageConfig(){
 
 function getS3Config(){ return getStorageConfig(); } // keep legacy alias
 
+// Turn a failed S3/GCS response (a couple of KB of XML) into one readable line
+async function storageErrorText(res, key){
+  let code='', msg='';
+  try{
+    const doc=new DOMParser().parseFromString(await res.text(),'application/xml');
+    code=doc.querySelector('Error > Code')?.textContent||'';
+    msg =doc.querySelector('Error > Message')?.textContent||'';
+  }catch(_){}
+  const name=(key||'').split('/').pop();
+  if(code==='SignatureDoesNotMatch'&&/[!'()*]/.test(name))
+    return `the file name "${name}" contains one of ( ) ! ' * — rename the file and try again.`;
+  const hint={
+    SignatureDoesNotMatch:        "the secret key is wrong, or this computer's clock is off",
+    InvalidAccessKeyId:           'the access key is not recognised',
+    AccessDenied:                 'these keys are not allowed to do this on the bucket',
+    NoSuchBucket:                 'the bucket name is wrong',
+    NoSuchKey:                    'the file is no longer in the bucket',
+    RequestTimeTooSkewed:         "this computer's clock is wrong",
+    PermanentRedirect:            'the bucket is in a different region',
+    AuthorizationHeaderMalformed: 'the region is wrong',
+  }[code];
+  return `${hint||msg||res.statusText||'request failed'} (HTTP ${res.status}${code?' '+code:''})`;
+}
+
 async function listStorageFiles(){
   const cfg = getStorageConfig();
   const label = storageProvider==='gcs' ? 'GCS' : 'S3';
@@ -6500,7 +6575,7 @@ async function listStorageFiles(){
   if(_connectBtn) _connectBtn.disabled = true;
   try {
     const res = await signedStorageFetch(cfg, 'GET', '', {'list-type':'2','prefix':cfg.prefix||'','max-keys':'200'});
-    if(!res.ok) throw new Error(`${label} ${res.status}: ${await res.text()}`);
+    if(!res.ok) throw new Error(await storageErrorText(res));
     const xml = await res.text();
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     const keys = [...doc.querySelectorAll('Contents Key')]
@@ -6534,7 +6609,7 @@ async function uploadToS3(file){
   try{
     const text=await file.text();
     const res=await signedStorageFetch(cfg,'PUT',key,{},text);
-    if(!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    if(!res.ok) throw new Error(await storageErrorText(res,key));
     s3SetStatus(`✓ Uploaded: ${file.name}`,'ok');
     await listStorageFiles();
   }catch(e){ s3SetStatus('Upload failed: '+e.message,'err'); }
@@ -6550,7 +6625,7 @@ async function deleteAllS3Files(){
     s3SetStatus(`Deleting ${deleted+1} / ${keys.length}…`,'loading');
     try{
       const res=await signedStorageFetch(cfg,'DELETE',key,{});
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      if(!res.ok) throw new Error(await storageErrorText(res,key));
       deleted++;
     }catch(e){ s3SetStatus('Delete failed: '+e.message,'err'); return; }
   }
@@ -6565,7 +6640,7 @@ async function deleteS3File(key){
   s3SetStatus(`Deleting ${name}…`,'loading');
   try{
     const res=await signedStorageFetch(cfg,'DELETE',key,{});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    if(!res.ok) throw new Error(await storageErrorText(res,key));
     s3SetStatus(`✓ Deleted: ${name}`,'ok');
     await listStorageFiles();
   }catch(e){ s3SetStatus('Delete failed: '+e.message,'err'); }
@@ -6627,7 +6702,7 @@ async function loadAllS3Files(){
     try{
       const cfg = getStorageConfig();
       const res = await signedStorageFetch(cfg, 'GET', key, {});
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      if(!res.ok) throw new Error(await storageErrorText(res,key));
       const text = await res.text();
       const file = new File([text], key.split('/').pop(), {type:'text/csv'});
       await readCSV(file);
@@ -6649,7 +6724,7 @@ async function loadS3File(key){
   s3SetStatus(`Loading ${key.split('/').pop()}…`,'loading');
   try {
     const res = await signedStorageFetch(cfg, 'GET', key, {});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    if(!res.ok) throw new Error(await storageErrorText(res,key));
     const text = await res.text();
     const fakeFile = new File([text], key.split('/').pop(), {type:'text/csv'});
     readCSV(fakeFile);
