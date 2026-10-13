@@ -519,10 +519,10 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     <button class="close-btn" onclick="document.getElementById('help-overlay').classList.remove('open')">✕</button>
     <h2>📋 איך להכין ולהעלות את הקבצים?</h2>
 
-    <h3>שלב 1 — הוצאת לוגי אפליקציות</h3>
+    <h3>שלב 1 — הוצאת יומני אפליקציות</h3>
     <ul>
       <li>נכנסים לאתר <strong>admin.google.com</strong> ובוחרים <strong>Reporting</strong> ← <strong>Audit and investigation</strong>.</li>
-      <li>בוחרים את הלוג הרצוי מהרשימה:</li>
+      <li>בוחרים את היומן הרצוי מהרשימה:</li>
     </ul>
     <ul style="margin-right:20px">
       <li>Chat log events</li>
@@ -534,7 +534,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
       <li>Gmail log events</li>
     </ul>
     <ul>
-      <li>בדף שנפתח — <strong>מבטלים את פילטר התאריך</strong> ולוחצים <strong>Search</strong>.</li>
+      <li>בדף שנפתח — <strong>מבטלים את מסנן התאריך</strong> ולוחצים <strong>Search</strong>.</li>
       <li>לוחצים על הכפתור הכחול <strong>Export All</strong>, בוחרים <strong>Comma-separated values (.csv)</strong> ונותנים שם לקובץ.</li>
     </ul>
     <div class="help-note">⚠ אם המערכת דורשת הזנת סיסמה מחדש — חוזרים על תהליך ה-Export מחדש.</div>
@@ -550,7 +550,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     <ul>
       <li>חוזרים לאתר הדוחות ולוחצים על <strong>☁ ניהול קבצים</strong>.</li>
       <li>לוחצים על הכפתור הירוק <strong>העלאת קבצים</strong> — ניתן לבחור קובץ בנפרד או את כולם ביחד.</li>
-      <li>לאחר שכל הקבצים עלו, לוחצים על <strong>העלאת כל הקבצים</strong> ומחכים שהדף יטען.</li>
+      <li>לאחר שכל הקבצים עלו, לוחצים על <strong>טען את כל הקבצים</strong> ומחכים שהדף ייטען.</li>
     </ul>
   </div>
 </div>
@@ -585,7 +585,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
       <button class="seg" data-p="7d"     onclick="setPreset('7d')">יומי</button>
       <button class="seg on" data-p="16w" onclick="setPreset('16w')">שבועי</button>
       <button class="seg" data-p="12m"    onclick="setPreset('12m')">חודשי</button>
-      <button class="seg" data-p="3m"     onclick="setPreset('3m')">רבעון</button>
+      <button class="seg" data-p="3m"     onclick="setPreset('3m')">רבעוני</button>
       <button class="seg" data-p="custom" onclick="setPreset('custom')">מותאם ▾</button>
     </div>
     <span class="ctrl-label" style="margin-left:6px">אפליקציות</span>
@@ -651,7 +651,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     <div onclick="uaCtxDrillGmail()"  id="ua-ctx-gmail"  class="ua-ctx-item">📧 אירועי Gmail</div>
     <div onclick="uaCtxDrillChat()"   id="ua-ctx-chat"   class="ua-ctx-item">💬 אירועי Chat</div>
     <div onclick="uaCtxDrillStudio()" id="ua-ctx-studio" class="ua-ctx-item">🎨 אירועי Studio</div>
-    <div onclick="uaCtxIsolate()" class="ua-ctx-item" style="border-top:1px solid var(--border)">🔍 בדד בגרף</div>
+    <div onclick="uaCtxIsolate()" class="ua-ctx-item" style="border-top:1px solid var(--border)">🔍 בודד בגרף</div>
   </div>
 
   <!-- User activity drill-down panel -->
@@ -694,7 +694,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
   <div id="inactive-panel" style="display:none;margin-bottom:22px">
     <div class="tbl-hdr" onclick="toggleInactive()" style="cursor:pointer">
       <h3>👤 פעילות משתמשים</h3>
-      <span id="inactive-lbl">Show ▾</span>
+      <span id="inactive-lbl">הצג ▾</span>
     </div>
     <div id="inactive-body" style="display:none"></div>
   </div>
@@ -726,7 +726,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
       <span class="dp-preset" data-p="win"  onclick="dpSetPreset('win')">חלון נוכחי</span>
       <span class="dp-preset" data-p="7d"   onclick="dpSetPreset('7d')">יומי</span>
       <span class="dp-preset" data-p="16w"  onclick="dpSetPreset('16w')">שבועי</span>
-      <span class="dp-preset" data-p="3m"   onclick="dpSetPreset('3m')">רבעון</span>
+      <span class="dp-preset" data-p="3m"   onclick="dpSetPreset('3m')">רבעוני</span>
       <span class="dp-preset" data-p="12m"  onclick="dpSetPreset('12m')">חודשי</span>
       <span class="dp-preset" data-p="all"  onclick="dpSetPreset('all')">כל הזמן</span>
     </div>
@@ -760,7 +760,7 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
 <div id="s3-overlay" onclick="closeS3()"></div>
 <div id="s3-drawer">
   <div class="s3-hdr">
-    <h3>☁ Cloud Storage <span id="s3-saved-badge" class="s3-saved-badge" style="display:none">● Connected</span></h3>
+    <h3>☁ Cloud Storage <span id="s3-saved-badge" class="s3-saved-badge" style="display:none">● מחובר</span></h3>
     <button onclick="closeS3()">✕</button>
   </div>
   <div style="display:flex;gap:0;margin:0 16px 12px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
@@ -776,11 +776,11 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
       <div style="display:flex;gap:8px;margin-top:4px">
         <button onclick="saveStorageCreds()"
           style="flex:1;background:#4285F4;color:#fff;border:none;border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">
-          Save &amp; Connect
+          שמירה והתחברות
         </button>
         <button onclick="clearStorageCreds()"
           style="background:none;border:1px solid var(--border);border-radius:6px;padding:9px 14px;font-size:12px;color:var(--muted);cursor:pointer">
-          Clear
+          ניקוי
         </button>
       </div>
     </div>
@@ -790,8 +790,8 @@ footer{text-align:center;padding:20px;font-size:11px;color:#3a4060;border-top:1p
     </button>
     <div id="s3-files-section" style="display:none">
       <div class="s3-section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>CSV Files in Bucket</span>
-        <button onclick="listStorageFiles()" style="background:none;border:none;color:#4285F4;font-size:11px;cursor:pointer;font-weight:600">↻ Refresh</button>
+        <span>קובצי CSV באחסון</span>
+        <button onclick="listStorageFiles()" style="background:none;border:none;color:#4285F4;font-size:11px;cursor:pointer;font-weight:600">↻ רענון</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <label for="s3-upload-input" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
@@ -2228,7 +2228,7 @@ function detectAnomalies(){
     anomalies.push({
       level:'info', icon:'📦',
       title:`${singleApp.length} משתמש${singleApp.length>1?'ים':''} עם אפליקציה אחת בלבד`,
-      detail:'משתמשים שנרשמו רק בכלי Workspace אחד – ייתכן שאינם מנצלים את הפלטפורמה',
+      detail:'משתמשים שנרשמה להם פעילות רק בכלי Workspace אחד – ייתכן שאינם מנצלים את הפלטפורמה',
       users: singleApp.map(em=>{
         const app=[...appSourcesOf(em)][0]||'?';
         return{em,count:windowed(em).length,label:`רק ${app}`};
@@ -2247,7 +2247,7 @@ function detectAnomalies(){
       level:'info', icon:'📉',
       title:`${lowActivity.length} משתמש${lowActivity.length>1?'ים':''} עם פעילות נמוכה מאוד`,
       detail:'פחות מ-5 אירועים בתקופה הנבחרת',
-      users: lowActivity.map(em=>({em, count:windowed(em).length, label:`${windowed(em).length} אירועים`})),
+      users: lowActivity.map(em=>({em, count:windowed(em).length, label:heCount(windowed(em).length,'אירוע אחד','אירועים')})),
       src:'low-activity',
     });
   }
@@ -2268,9 +2268,9 @@ function detectAnomalies(){
     if(extList.length){
       anomalies.push({
         level:'warning', icon:'🌐',
-        title:`${extList.length} גורם${extList.length>1?'ים':''} חיצוני${extList.length>1?'ים':''} ניגשו ל-Drive`,
+        title:extList.length>1?`${extList.length} גורמים חיצוניים ניגשו ל-Drive`:'גורם חיצוני אחד ניגש ל-Drive',
         detail:'גישה מחשבונות מחוץ לדומיין הארגוני – כדאי לבדוק הרשאות',
-        users: extList.map(([em,cnt])=>({em,count:cnt,label:`${cnt} אירועים`})),
+        users: extList.map(([em,cnt])=>({em,count:cnt,label:heCount(cnt,'אירוע אחד','אירועים')})),
         src:'external-drive',
       });
     }
@@ -2322,7 +2322,7 @@ function detectAnomalies(){
         level:'critical', icon:'🚨',
         title:`${suspList.length} משתמש${suspList.length>1?'ים':''} עם כניסה חשודה`,
         detail:'Google סימן כניסות אלו כחשודות (suspicious_login)',
-        users: suspList.map(([em,cnt])=>({em,count:cnt,label:`${cnt} כניסות חשודות`})),
+        users: suspList.map(([em,cnt])=>({em,count:cnt,label:heCount(cnt,'כניסה חשודה אחת','כניסות חשודות')})),
         src:'suspicious-login',
       });
     }
@@ -2333,8 +2333,8 @@ function detectAnomalies(){
       anomalies.push({
         level:'critical', icon:'⚠️',
         title:suspSuccList.length>1?`${suspSuccList.length} כניסות מוצלחות שסומנו חשודות`:'כניסה מוצלחת אחת שסומנה חשודה',
-        detail:'login_success עם is_suspicious=true – כניסה הצליחה אך Google חשדה בה',
-        users: suspSuccList.map(([em,cnt])=>({em,count:cnt,label:`${cnt} אירועים`})),
+        detail:'login_success עם is_suspicious=true – הכניסה הצליחה אך Google חשד בה',
+        users: suspSuccList.map(([em,cnt])=>({em,count:cnt,label:heCount(cnt,'אירוע אחד','אירועים')})),
         src:'suspicious-success',
       });
     }
@@ -2346,7 +2346,7 @@ function detectAnomalies(){
       anomalies.push({
         level:'critical', icon:'🔴',
         title:`${critEvents.length} אירוע${critEvents.length>1?'ים':''} קריטי${critEvents.length>1?'ים':''} בחשבון`,
-        detail:'חשבון נחטף / דלף סיסמה / אזהרת תקיפה ממשלתית',
+        detail:'חשבון נחטף / דליפת סיסמה / אזהרת תקיפה ממשלתית',
         users: Object.entries(byUser).map(([em,evs])=>({em,count:evs.size,label:[...evs].join(', ')})),
         src:'critical-account',
       });
@@ -2359,7 +2359,7 @@ function detectAnomalies(){
         level:'warning', icon:'🔒',
         title:`${failList.length} משתמש${failList.length>1?'ים':''} עם 5+ כניסות כושלות`,
         detail:'ניסיונות כניסה חוזרים שנכשלו – ייתכן ניסיון פריצה',
-        users: failList.map(([em,cnt])=>({em,count:cnt,label:`${cnt} כניסות כושלות`})),
+        users: failList.map(([em,cnt])=>({em,count:cnt,label:heCount(cnt,'כניסה כושלת אחת','כניסות כושלות')})),
         src:'login-failures',
       });
     }
@@ -2393,8 +2393,8 @@ function detectAnomalies(){
       const uniq=[...new Set(warnMap['risky_sensitive_action_allowed'])];
       anomalies.push({
         level:'warning', icon:'⚡',
-        title:`${uniq.length} אישור פעולה מסוכנת`,
-        detail:'Google אפשר פעולה רגישה שדורשת תשומת לב',
+        title:heCount(uniq.length,'אישור אחד של פעולה מסוכנת','אישורי פעולה מסוכנת'),
+        detail:'Google אישר פעולה רגישה שדורשת תשומת לב',
         users: uniq.map(em=>({em,count:1,label:'פעולה מסוכנת אושרה'})),
         src:'risky-action',
       });
@@ -2449,7 +2449,7 @@ function buildAnomaliesSection(){
           <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500">${nameOf(u.em)}</div>
           <div style="font-size:11px;color:var(--text2);flex-shrink:0;text-align:left">${u.label}</div>
         </div>`).join('')}
-        ${more>0?`<div style="font-size:11px;color:var(--text2);padding-top:2px">ועוד ${more} נוספים...</div>`:''}
+        ${more>0?`<div style="font-size:11px;color:var(--text2);padding-top:2px">${more===1?'ועוד אחד...':`ועוד ${more}...`}</div>`:''}
       </div>` : ''}
     </div>`;
   };
@@ -2463,7 +2463,7 @@ function buildAnomaliesSection(){
         <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <div style="font-weight:700;font-size:14px;color:${color}">${label}</div>
         <div style="flex:1;height:1px;background:var(--border)"></div>
-        <div style="font-size:12px;color:var(--text2)">${items.length} ממצאים</div>
+        <div style="font-size:12px;color:var(--text2)">${heCount(items.length,'ממצא אחד','ממצאים')}</div>
       </div>`
     : '';
 
@@ -2475,8 +2475,8 @@ function buildAnomaliesSection(){
         <div style="font-size:13px;color:var(--text2)">זיהוי אנומליות והתנהגות חריגה בפעילות משתמשים</div>
       </div>
       <div style="margin-right:auto;display:flex;gap:8px">
-        ${criticals.length?`<span style="background:rgba(239,83,80,.15);color:#EF5350;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,83,80,.4)">${criticals.length} קריטי</span>`:''}
-        ${warnings.length?`<span style="background:rgba(255,167,38,.15);color:#FFA726;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,167,38,.4)">${warnings.length} אזהרות</span>`:''}
+        ${criticals.length?`<span style="background:rgba(239,83,80,.15);color:#EF5350;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,83,80,.4)">${heCount(criticals.length,'קריטי אחד','קריטיים')}</span>`:''}
+        ${warnings.length?`<span style="background:rgba(255,167,38,.15);color:#FFA726;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,167,38,.4)">${heCount(warnings.length,'אזהרה אחת','אזהרות')}</span>`:''}
         ${infos.length?`<span style="background:rgba(66,165,245,.15);color:#42A5F5;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid rgba(66,165,245,.4)">${infos.length} מידע</span>`:''}
       </div>
     </div>
@@ -3136,7 +3136,7 @@ function buildUserActivityCard(){
   return`<div class="app-card app-card-gmail" id="user-activity-card" style="grid-column:1/-1">
     <div class="app-card-hdr">
       <div class="app-card-icon" style="background:#AB47BC22">👥</div>
-      <div class="app-card-title" style="color:#AB47BC">User Activity</div>
+      <div class="app-card-title" style="color:#AB47BC">פעילות משתמשים</div>
       <div class="app-card-active"><strong>${activeUsers.length}</strong> משתמשים</div>
     </div>
     <div id="ua-app-filters" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px 0;align-items:center"></div>
@@ -3149,9 +3149,9 @@ function buildUserActivityCard(){
           oninput="uaFilterList(this.value)">
         <div style="display:flex;gap:6px">
           <button onclick="uaSelectAll()" style="flex:1;font-size:10px;padding:3px 0;background:transparent;
-            border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer">All</button>
+            border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer">הכול</button>
           <button onclick="uaClearAll()" style="flex:1;font-size:10px;padding:3px 0;background:transparent;
-            border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer">None</button>
+            border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer">ללא</button>
         </div>
         <div id="ua-user-list"
           style="overflow-y:auto;max-height:240px;display:flex;flex-direction:column;gap:2px;
@@ -3673,7 +3673,7 @@ function buildInactiveUsersCard(){
   return`<div class="app-card app-card-gmail" id="inactive-users-card">
     <div class="app-card-hdr">
       <div class="app-card-icon" style="background:#FF6D0022">🚫</div>
-      <div class="app-card-title" style="color:#FF6D00">Inactive Users</div>
+      <div class="app-card-title" style="color:#FF6D00">משתמשים לא פעילים</div>
       <div class="app-card-active" style="cursor:pointer" onclick="openDrillPage('ua-inactive',{title:'משתמשים לא פעילים — כל הכלים'})">
         <strong>${inactiveCount}</strong> לא פעילים מתוך ${total}
       </div>
@@ -4326,7 +4326,7 @@ function dpRender(){
     empty.style.display='none';
     document.getElementById('dp-tbody').innerHTML=rows.map(r=>`<tr>${r.cells.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
   }
-  document.getElementById('dp-count').textContent=rows.length?`${rows.length} שורות${q?` התואמות "${_dp.search}"`:''}`:'';
+  document.getElementById('dp-count').textContent=rows.length?`${heCount(rows.length,'שורה אחת','שורות')}${q?` ${rows.length===1?'התואמת':'התואמות'} "${_dp.search}"`:''}`:'';
 }
 
 // close drill page with Escape
@@ -4380,15 +4380,15 @@ function uaRenderAppFilters(sources){
       ${s.label}
     </span>`;
   }).join('');
-  const resetBtn=`<button onclick="uaResetAppFilters()" title="Reset app filters"
+  const resetBtn=`<button onclick="uaResetAppFilters()" title="איפוס מסנני האפליקציות"
     style="margin-left:auto;font-size:10px;padding:2px 8px;background:transparent;
            border:1px solid var(--border);border-radius:10px;color:var(--muted);cursor:pointer">
-    ↺ Reset filters
+    ↺ איפוס מסננים
   </button>
-  <button onclick="uaClearAll()" title="Clear all users and app filters"
+  <button onclick="uaClearAll()" title="ניקוי כל המשתמשים ומסנני האפליקציות"
     style="font-size:10px;padding:2px 8px;background:transparent;
            border:1px solid var(--border);border-radius:10px;color:var(--muted);cursor:pointer">
-    ✕ Clear all
+    ✕ נקה הכול
   </button>`;
   wrap.innerHTML=chips+resetBtn;
 }
@@ -5010,7 +5010,7 @@ function buildGeminiCard(){
     <div class="app-card-hdr">
       <div class="app-card-icon" style="background:#1A73E822">✨</div>
       <div class="app-card-title" style="color:#1A73E8">Gemini</div>
-      <div class="app-card-active"><strong>${peakActive}</strong> peak משתמשים פעילים</div>
+      <div class="app-card-active"><strong>${peakActive}</strong> שיא משתמשים פעילים</div>
       <div style="margin-left:12px;font-size:11px;color:var(--muted)">${latestEligible} eligible · ${pct}% אימוץ</div>
     </div>
     <div class="gmail-body">
@@ -5094,7 +5094,7 @@ function renderGeminiCharts(){
     });
   }
 
-  // Line — משתמשים פעילים trend
+  // Line — active users trend
   const trendCtx=document.getElementById('gemini-trend')?.getContext('2d');
   if(trendCtx&&periods.length){
     appCardCharts['gemini-trend']=new Chart(trendCtx,{
@@ -5352,6 +5352,9 @@ function showGmailDrill(dates,label){
   const sd=dates.filter(Boolean).sort();
   openDrillPage('gmail',{title:`Gmail — ${label}`,label,start:sd[0],end:sd[sd.length-1]});
 }
+
+// Hebrew counted noun: heCount(1,'אירוע אחד','אירועים') → "אירוע אחד"; heCount(5,…) → "5 אירועים"
+function heCount(n,one,many){ return n===1 ? one : n+' '+many; }
 
 function fmtNum(n){
   if(n>=1000000) return (n/1000000).toFixed(1)+'M';
@@ -5700,12 +5703,12 @@ function renderSecurityRow(){
     <div class="sec-card ${sc.compromised>0?'danger':''}">
       <div class="sec-label">🔴 Compromised</div>
       <div class="sec-val ${cls(sc.compromised)}">${sc.compromised}</div>
-      <div class="sec-sub">${pct(sc.compromised)}% מתוך ${sc.total} users</div>
+      <div class="sec-sub">${pct(sc.compromised)}% מתוך ${sc.total} משתמשים</div>
     </div>
     <div class="sec-card ${sc.nonCompliant>0?'warn':''}">
       <div class="sec-label">🟡 Non-Compliant</div>
       <div class="sec-val ${cls(sc.nonCompliant)}">${sc.nonCompliant}</div>
-      <div class="sec-sub">${pct(sc.nonCompliant)}% מתוך ${sc.total} users</div>
+      <div class="sec-sub">${pct(sc.nonCompliant)}% מתוך ${sc.total} משתמשים</div>
     </div>
     <div class="sec-card ${sc.outdatedOS>0?'warn':''}">
       <div class="sec-label">🟡 Outdated OS</div>
@@ -6030,8 +6033,8 @@ function renderInactiveUsers(){
       const d=new Date(val);
       if(isNaN(d))return`<span class="badge-old">${val}</span>`;
       const days=Math.floor((Date.now()-d)/864e5);
-      if(days>30)return`<span class="badge-old">לפני ${days} ימ'</span>`;
-      return`<span class="badge-ok">לפני ${days} ימ'</span>`;
+      if(days>30)return`<span class="badge-old">לפני ${days} ימים</span>`;
+      return`<span class="badge-ok">${days<=0?'היום':days===1?'אתמול':`לפני ${days} ימים`}</span>`;
     }catch{return`<span class="badge-old">${val}</span>`;}
   }
 
@@ -6263,7 +6266,7 @@ function reset(){
   visApps=new Set(APP_KEYS);gran='weekly';
   document.querySelectorAll('.seg').forEach(b=>b.classList.toggle('on',b.dataset.g==='weekly'));
   const tblBody=document.getElementById('tbl-body');if(tblBody)tblBody.style.display='none';
-  const tblLbl=document.getElementById('tbl-lbl');if(tblLbl)tblLbl.textContent='Show ▾';
+  const tblLbl=document.getElementById('tbl-lbl');if(tblLbl)tblLbl.textContent='הצג ▾';
   const fi=document.getElementById('file-input');if(fi)fi.value='';
 }
 
@@ -6377,13 +6380,13 @@ const CRED_FIELDS = {
     {key:'region',    label:'Region',              placeholder:'eu-north-1'},
     {key:'accessKey', label:'Access Key',          placeholder:'AKIA…'},
     {key:'secretKey', label:'Secret Key',          placeholder:'…', type:'password'},
-    {key:'prefix',    label:'Prefix (optional)',   placeholder:'reports/'},
+    {key:'prefix',    label:'Prefix (אופציונלי)',   placeholder:'reports/'},
   ],
   gcs: [
     {key:'bucket',    label:'Bucket',              placeholder:'my-gcs-bucket'},
     {key:'accessKey', label:'HMAC Access Key',     placeholder:'GOOG…'},
     {key:'secretKey', label:'HMAC Secret Key',     placeholder:'…', type:'password'},
-    {key:'prefix',    label:'Prefix (optional)',   placeholder:'reports/'},
+    {key:'prefix',    label:'Prefix (אופציונלי)',   placeholder:'reports/'},
   ],
 };
 
@@ -6421,7 +6424,7 @@ function saveStorageCreds(){
   const cfg={};
   fields.forEach(f=>{ cfg[f.key]=(document.getElementById(`cred-${p}-${f.key}`)?.value||'').trim(); });
   if(!cfg.bucket||!cfg.accessKey||!cfg.secretKey){
-    s3SetStatus('Bucket, Access Key and Secret Key are required.','err'); return;
+    s3SetStatus('חובה למלא Bucket, Access Key ו-Secret Key.','err'); return;
   }
   localStorage.setItem(_credKey(p), JSON.stringify(cfg));
   window[_credKey(p)]=cfg;
@@ -6465,7 +6468,7 @@ async function autoLoadFromStorage(){
   showLoader('טוען מ-S3...');
 
   const btn = document.querySelector('.btn-s3');
-  if(btn){ btn.textContent='☁ Loading…'; btn.disabled=true; }
+  if(btn){ btn.textContent='☁ טוען…'; btn.disabled=true; }
 
   try {
     const res = await signedStorageFetch(cfg,'GET','',{'list-type':'2','prefix':cfg.prefix||'','max-keys':'200'});
@@ -6496,12 +6499,12 @@ async function autoLoadFromStorage(){
     if(btn){ btn.textContent='☁ ניהול קבצים'; btn.disabled=false; }
   } catch(e){
     hideLoader();
-    if(btn){ btn.textContent='☁ Failed to load'; btn.disabled=false; btn.title=e.message; }
+    if(btn){ btn.textContent='☁ הטעינה נכשלה'; btn.disabled=false; btn.title=e.message; }
     // Show a banner so the user knows why data is missing
     const isCors = e instanceof TypeError;
     const msg = isCors
-      ? '⚠ S3 blocked (CORS). Add "null" to AllowedOrigins in your S3 bucket CORS policy, then refresh.'
-      : `⚠ S3 auto-load failed: ${e.message}. Click ☁ ניהול קבצים to connect manually.`;
+      ? '⚠ הגישה ל-S3 נחסמה (CORS). יש להוסיף "null" ל-AllowedOrigins במדיניות ה-CORS של ה-bucket ולרענן.'
+      : `⚠ הטעינה האוטומטית מ-S3 נכשלה: ${e.message}. לחצו על ☁ ניהול קבצים כדי להתחבר ידנית.`;
     let banner = document.getElementById('s3-auto-err');
     if(!banner){
       banner = document.createElement('div');
@@ -6553,24 +6556,24 @@ async function storageErrorText(res, key){
   }catch(_){}
   const name=(key||'').split('/').pop();
   if(code==='SignatureDoesNotMatch'&&/[!'()*]/.test(name))
-    return `the file name "${name}" contains one of ( ) ! ' * — rename the file and try again.`;
+    return `שם הקובץ "${name}" מכיל אחד מהתווים ( ) ! ' * — יש לשנות את שם הקובץ ולנסות שוב.`;
   const hint={
-    SignatureDoesNotMatch:        "the secret key is wrong, or this computer's clock is off",
-    InvalidAccessKeyId:           'the access key is not recognised',
-    AccessDenied:                 'these keys are not allowed to do this on the bucket',
-    NoSuchBucket:                 'the bucket name is wrong',
-    NoSuchKey:                    'the file is no longer in the bucket',
-    RequestTimeTooSkewed:         "this computer's clock is wrong",
-    PermanentRedirect:            'the bucket is in a different region',
-    AuthorizationHeaderMalformed: 'the region is wrong',
+    SignatureDoesNotMatch:        'ה-Secret Key שגוי, או ששעון המחשב אינו מדויק',
+    InvalidAccessKeyId:           'ה-Access Key אינו מזוהה',
+    AccessDenied:                 'למפתחות אלה אין הרשאה לבצע את הפעולה ב-bucket',
+    NoSuchBucket:                 'שם ה-bucket שגוי',
+    NoSuchKey:                    'הקובץ כבר אינו קיים ב-bucket',
+    RequestTimeTooSkewed:         'שעון המחשב אינו מדויק',
+    PermanentRedirect:            'ה-bucket נמצא ב-region אחר',
+    AuthorizationHeaderMalformed: 'ה-region שגוי',
   }[code];
-  return `${hint||msg||res.statusText||'request failed'} (HTTP ${res.status}${code?' '+code:''})`;
+  return `${hint||msg||res.statusText||'הבקשה נכשלה'} (HTTP ${res.status}${code?' '+code:''})`;
 }
 
 async function listStorageFiles(){
   const cfg = getStorageConfig();
   const label = storageProvider==='gcs' ? 'GCS' : 'S3';
-  s3SetStatus(`Connecting to ${label}…`, 'loading');
+  s3SetStatus(`מתחבר ל-${label}…`, 'loading');
   const _connectBtn = document.getElementById('s3-connect-btn');
   if(_connectBtn) _connectBtn.disabled = true;
   try {
@@ -6581,15 +6584,15 @@ async function listStorageFiles(){
     const keys = [...doc.querySelectorAll('Contents Key')]
       .map(el=>el.textContent).filter(k=>k.toLowerCase().endsWith('.csv')||k.toLowerCase().endsWith('.tsv'));
     if(!keys.length){
-      s3SetStatus(`Connected ✓ — No CSV files found under "${cfg.prefix||'(root)'}"`, 'ok');
-      document.getElementById('s3-file-list').innerHTML='<div style="padding:8px 0;font-size:12px;color:var(--muted)">No files yet — upload one above.</div>';
+      s3SetStatus(`מחובר ✓ — לא נמצאו קובצי CSV תחת "${cfg.prefix||'(root)'}"`, 'ok');
+      document.getElementById('s3-file-list').innerHTML='<div style="padding:8px 0;font-size:12px;color:var(--muted)">אין עדיין קבצים — העלו קובץ בכפתור שלמעלה.</div>';
       document.getElementById('s3-files-section').style.display='block';
     } else {
-      s3SetStatus(`Connected ✓ — ${keys.length} file${keys.length!==1?'s':''} found`, 'ok');
+      s3SetStatus(`מחובר ✓ — ${keys.length===1?'נמצא קובץ אחד':`נמצאו ${keys.length} קבצים`}`, 'ok');
       renderS3FileList(keys, doc);
       document.getElementById('s3-files-section').style.display='block';
     }
-  } catch(e){ s3SetStatus('Error: '+(e.message||e),'err'); }
+  } catch(e){ s3SetStatus('שגיאה: '+(e.message||e),'err'); }
   finally{ if(_connectBtn) _connectBtn.disabled=false; }
 }
 
@@ -6605,45 +6608,45 @@ async function uploadToS3(file){
   const cfg=getStorageConfig();
   const prefix=(cfg.prefix||'').replace(/\/$/,'');
   const key=prefix?`${prefix}/${file.name}`:file.name;
-  s3SetStatus(`Uploading ${file.name}…`,'loading');
+  s3SetStatus(`מעלה את ${file.name}…`,'loading');
   try{
     const text=await file.text();
     const res=await signedStorageFetch(cfg,'PUT',key,{},text);
     if(!res.ok) throw new Error(await storageErrorText(res,key));
-    s3SetStatus(`✓ Uploaded: ${file.name}`,'ok');
+    s3SetStatus(`✓ הועלה: ${file.name}`,'ok');
     await listStorageFiles();
-  }catch(e){ s3SetStatus('Upload failed: '+e.message,'err'); }
+  }catch(e){ s3SetStatus('ההעלאה נכשלה: '+e.message,'err'); }
 }
 
 async function deleteAllS3Files(){
   const keys=window._s3Keys||[];
   if(!keys.length) return;
-  if(!confirm(`Delete all ${keys.length} file${keys.length!==1?'s':''} from the bucket? This cannot be undone.`)) return;
+  if(!confirm(`למחוק את כל הקבצים (${keys.length}) מהאחסון? לא ניתן לבטל פעולה זו.`)) return;
   const cfg=getStorageConfig();
   let deleted=0;
   for(const key of keys){
-    s3SetStatus(`Deleting ${deleted+1} / ${keys.length}…`,'loading');
+    s3SetStatus(`מוחק ${deleted+1} / ${keys.length}…`,'loading');
     try{
       const res=await signedStorageFetch(cfg,'DELETE',key,{});
       if(!res.ok) throw new Error(await storageErrorText(res,key));
       deleted++;
-    }catch(e){ s3SetStatus('Delete failed: '+e.message,'err'); return; }
+    }catch(e){ s3SetStatus('המחיקה נכשלה: '+e.message,'err'); return; }
   }
-  s3SetStatus(`✓ Deleted all ${deleted} files`,'ok');
+  s3SetStatus(`✓ כל הקבצים נמחקו (${deleted})`,'ok');
   await listStorageFiles();
 }
 
 async function deleteS3File(key){
   const name=key.split('/').pop();
-  if(!confirm(`Delete "${name}" from bucket?`)) return;
+  if(!confirm(`למחוק את "${name}" מהאחסון?`)) return;
   const cfg=getStorageConfig();
-  s3SetStatus(`Deleting ${name}…`,'loading');
+  s3SetStatus(`מוחק את ${name}…`,'loading');
   try{
     const res=await signedStorageFetch(cfg,'DELETE',key,{});
     if(!res.ok) throw new Error(await storageErrorText(res,key));
-    s3SetStatus(`✓ Deleted: ${name}`,'ok');
+    s3SetStatus(`✓ נמחק: ${name}`,'ok');
     await listStorageFiles();
-  }catch(e){ s3SetStatus('Delete failed: '+e.message,'err'); }
+  }catch(e){ s3SetStatus('המחיקה נכשלה: '+e.message,'err'); }
 }
 
 function renderS3FileList(keys, doc){
@@ -6678,8 +6681,8 @@ function renderS3FileList(keys, doc){
         <div class="s3-file-meta">${[kb, mod].filter(Boolean).join(' · ')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        <span class="s3-file-load">Load →</span>
-        <button class="s3-file-del" onclick="event.stopPropagation();deleteS3File('${key}')" title="Delete">🗑</button>
+        <span class="s3-file-load">טעינה ←</span>
+        <button class="s3-file-del" onclick="event.stopPropagation();deleteS3File('${key}')" title="מחיקה">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -6696,7 +6699,7 @@ async function loadAllS3Files(){
   showLoader('טוען מ-S3...');
   window._s3LoadPending = keys.length;
   setLoaderProgress(5);
-  s3SetStatus(`Loading 0 / ${keys.length}…`, 'loading');
+  s3SetStatus(`טוען 0 / ${keys.length}…`, 'loading');
   let done = 0;
   for(const key of keys){
     try{
@@ -6709,28 +6712,28 @@ async function loadAllS3Files(){
       done++;
       window._s3LoadPending--;
       setLoaderProgress(5 + Math.round(65 * done / keys.length));
-      s3SetStatus(`Loading ${done} / ${keys.length}…`, 'loading');
+      s3SetStatus(`טוען ${done} / ${keys.length}…`, 'loading');
     } catch(e){
-      s3SetStatus(`Error loading ${key.split('/').pop()}: ${e.message}`, 'err');
+      s3SetStatus(`שגיאה בטעינת ${key.split('/').pop()}: ${e.message}`, 'err');
       return;
     }
   }
-  s3SetStatus(`Loaded ${done} file${done!==1?'s':''} ✓`, 'ok');
+  s3SetStatus(`${done===1?'נטען קובץ אחד':`נטענו ${done} קבצים`} ✓`, 'ok');
   setTimeout(()=>closeS3(), 800);
 }
 
 async function loadS3File(key){
   const cfg = getStorageConfig();
-  s3SetStatus(`Loading ${key.split('/').pop()}…`,'loading');
+  s3SetStatus(`טוען את ${key.split('/').pop()}…`,'loading');
   try {
     const res = await signedStorageFetch(cfg, 'GET', key, {});
     if(!res.ok) throw new Error(await storageErrorText(res,key));
     const text = await res.text();
     const fakeFile = new File([text], key.split('/').pop(), {type:'text/csv'});
     readCSV(fakeFile);
-    s3SetStatus(`✓ Loaded: ${key.split('/').pop()}`,'ok');
+    s3SetStatus(`✓ נטען: ${key.split('/').pop()}`,'ok');
     setTimeout(closeS3, 1200);
-  } catch(e){ s3SetStatus('Failed to load: '+e.message,'err'); }
+  } catch(e){ s3SetStatus('הטעינה נכשלה: '+e.message,'err'); }
 }
 
 // ── Unified Storage Signing (AWS Sig V4 — works for both S3 and GCS HMAC) ──
